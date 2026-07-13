@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 360px;
+    }
+    h2 { margin: 0 0 8px; color: #1a1a1a; }
+    p { color: #666; margin: 0 0 24px; font-size: 14px; }
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 24px;
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: #3c4043;
+    }
+    .google-btn:hover { background: #f8f9fa; }
+    .google-btn img { width: 20px; height: 20px; }
+    .loader { display: none; margin: 20px auto; border: 3px solid #e0e0e0; border-top: 3px solid #4285f4; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #d93025; font-size: 13px; margin-top: 12px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Sign in</h2>
+    <p>Use your Google account to continue</p>
+    <button class="google-btn" id="signInBtn" onclick="signIn()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <div class="loader" id="loader"></div>
+    <div class="error" id="error"></div>
+    <div id="status" style="margin-top:12px;font-size:12px;color:#666;"></div>
+  </div>
+  <script>
+    function log(msg) {
+      document.getElementById('status').textContent = msg;
+      console.log(msg);
+    }
+
+    log('Loading Firebase SDK...');
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" onload="log('firebase-app-compat loaded')" onerror="log('FAILED to load firebase-app-compat')"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" onload="log('firebase-auth-compat loaded')" onerror="log('FAILED to load firebase-auth-compat')"></script>
+  <script>
+    function init() {
+      if (typeof firebase === 'undefined') {
+        log('Waiting for Firebase...');
+        setTimeout(init, 200);
+        return;
+      }
+
+      log('Firebase SDK ready, initializing...');
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDm6FDNaShaGolFnFFhR0ZkKkSRoEf9ZTw",
+        authDomain: "mess-manager-6dcce.firebaseapp.com",
+        projectId: "mess-manager-6dcce",
+        appId: "1:716451290126:web:b1ff4fc5897ef78bbc705f"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+
+      log('Firebase initialized');
+
+      function showLoader() {
+        document.getElementById('signInBtn').style.display = 'none';
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('status').textContent = 'Signing in...';
+      }
+
+      function showError(msg) {
+        const el = document.getElementById('error');
+        el.textContent = msg;
+        el.style.display = 'block';
+        document.getElementById('signInBtn').style.display = 'inline-flex';
+        document.getElementById('loader').style.display = 'none';
+        log('Error: ' + msg);
+      }
+
+      function sendCredential(cred) {
+        const msg = JSON.stringify({
+          type: 'success',
+          idToken: cred.idToken || null,
+          accessToken: cred.accessToken || null
+        });
+        log('Sending credential to Flutter...');
+        if (window.chrome && window.chrome.webview) {
+          window.chrome.webview.postMessage(msg);
+        } else {
+          log('CREDENTIAL: ' + msg);
+        }
+      }
+
+      window.signIn = function() {
+        showLoader();
+        log('Starting Google sign-in with signInWithRedirect...');
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.addScope('email');
+          provider.addScope('profile');
+          auth.signInWithRedirect(provider);
+          log('Redirect initiated, waiting for return...');
+        } catch (error) {
+          showError(error.message);
+        }
+      };
+
+      auth.getRedirectResult().then(result => {
+        if (result.credential) {
+          log('Redirect result received!');
+          sendCredential(result.credential);
+        } else {
+          log('No pending redirect result, ready to sign in');
+          document.getElementById('signInBtn').style.display = 'inline-flex';
+        }
+      }).catch(error => {
+        showError(error.message);
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>

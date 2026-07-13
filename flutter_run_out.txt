@@ -1,0 +1,17 @@
+Launching lib\main.dart on Windows in debug mode...
+Building Windows application...                                 
+Building Windows application...                                    12.9s
+✓ Built build\windows\x64\runner\Debug\mess_manager.exe
+Syncing files to device Windows...                                 157ms
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on Windows is available at: http://127.0.0.1:55820/ltwQX08hYYg=/
+The Flutter DevTools debugger and profiler on Windows is available at: http://127.0.0.1:55820/ltwQX08hYYg=/devtools/?uri=ws://127.0.0.1:55820/ltwQX08hYYg=/ws
+Lost connection to device.

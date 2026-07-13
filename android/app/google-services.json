@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "716451290126",
+    "project_id": "mess-manager-6dcce",
+    "storage_bucket": "mess-manager-6dcce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:716451290126:android:c92f0192af5b1351bc705f",
+        "android_client_info": {
+          "package_name": "com.imran.mess_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzvcVvpw0AlAlmRS0mvylOMVLft6msgM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

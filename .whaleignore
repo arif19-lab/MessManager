@@ -1,0 +1,14 @@
+.dart_tool/
+build/
+.git/
+android/
+ios/
+web/
+windows/
+mac/
+linux/
+.idea/
+*.lock
+*.png
+*.jpg
+*.jpeg
