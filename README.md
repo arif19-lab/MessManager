@@ -54,5 +54,19 @@ If you want to run this project on your own machine, follow these steps:
    flutter run
    ```
 
+## 📦 Building the Windows Installer
+
+To create a professional `Setup.exe` file for Windows distribution, we use **Inno Setup**.
+
+1. Download and install [Inno Setup Compiler](https://jrsoftware.org/isdl.php).
+2. Build the Flutter Windows app first:
+   ```bash
+   flutter build windows
+   ```
+3. Open the `mess_manager_setup.iss` file located in the root of the project using Inno Setup.
+4. Update the `AppVersion` and `OutputBaseFilename` if you are releasing a new version.
+5. Click **Build > Compile** (or press `Ctrl + F9`).
+6. The compiled `Setup.exe` will be generated in `build/windows/installer/`.
+
 ## 📜 License
 This project is for personal and educational use. Feel free to explore the code, learn, and contribute!
