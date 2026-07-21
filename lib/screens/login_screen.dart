@@ -3,15 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'home_screen.dart';
 import 'package:mess_manager/widgets/glassy_notification.dart';
-import 'package:mess_manager/widgets/glass_dialog.dart';
 import 'package:mess_manager/providers/mess_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mess_manager/services/firebase_service.dart';
 import 'package:mess_manager/services/google_sign_in_desktop.dart';
 import 'package:mess_manager/services/auth_mode_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert';
 import 'dart:ui';
 
 class LoginScreen extends StatefulWidget {
@@ -29,16 +25,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isSignUp = false;
 
-  bool get _googleSupported => true;
-  final _secureStorage = const FlutterSecureStorage();
-  List<Map<String, String>> _savedAccounts = [];
   @override
   void initState() {
     super.initState();
     _emailController.clear();
     _passwordController.clear();
     _nameController.clear();
-    _loadSavedAccounts();
   }
 
   @override
@@ -77,8 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         await context.read<MessProvider>().initialize();
       }
-
-      await _saveAccount(_emailController.text.trim(), _passwordController.text);
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -538,182 +528,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _saveAccount(String email, String password) async {
-    try {
-      final existing = await _secureStorage.read(key: 'saved_emails');
-      List<Map<String, String>> accounts = [];
-      if (existing != null) {
-        final list = jsonDecode(existing) as List;
-        accounts = list.map((e) => Map<String, String>.from(e as Map)).toList();
-        accounts.removeWhere((a) => a['email'] == email);
-      }
-      accounts.insert(0, {'email': email, 'password': password});
-      if (accounts.length > 5) accounts = accounts.sublist(0, 5);
-      await _secureStorage.write(key: 'saved_emails', value: jsonEncode(accounts));
-      if (mounted) setState(() => _savedAccounts = accounts);
-    } catch (_) {}
-  }
-
-  Future<void> _loadSavedAccounts() async {
-    try {
-      final existing = await _secureStorage.read(key: 'saved_emails');
-      if (existing != null) {
-        final list = jsonDecode(existing) as List;
-        if (mounted) {
-          setState(() {
-          _savedAccounts = list.map((e) {
-            // Backward compatibility with old string list
-            if (e is String) return {'email': e, 'password': ''};
-            return Map<String, String>.from(e as Map);
-          }).toList();
-        });
-        }
-      }
-    } catch (_) {
-    }
-  }
-
-  Future<void> _deleteSavedAccount(String email) async {
-    setState(() => _savedAccounts.removeWhere((a) => a['email'] == email));
-    await _secureStorage.write(key: 'saved_emails', value: jsonEncode(_savedAccounts));
-  }
-
-  void _showSavedAccountsSheet() {
-    final isWide = MediaQuery.of(context).size.width > 800;
-    showGlassDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isWide ? 28 : 24)),
-          child: Container(
-            width: isWide ? 400 : MediaQuery.of(ctx).size.width * 0.9,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(isWide ? 28 : 24),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                  blurRadius: 40,
-                  offset: const Offset(0, 16),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Saved Emails',
-                      style: TextStyle(
-                        color: Color(0xFF1E293B),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.8,
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        width: 28, height: 28,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.close, size: 14, color: Color(0xFF94A3B8)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Tap an email to fill it in quickly.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 16),
-                if (_savedAccounts.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: Text('No saved accounts.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13))),
-                  )
-                else
-..._savedAccounts.map((account) {
-                    final email = account['email'] ?? '';
-                    final password = account['password'] ?? '';
-                    return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _emailController.text = email;
-                        if (password.isNotEmpty) {
-                          _passwordController.text = password;
-                          _handleLogin(); // Trigger auto-login
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: const Color(0xFF0F766E),
-                              child: Text(
-                                email.isNotEmpty ? email[0].toUpperCase() : '?',
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                email,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                _deleteSavedAccount(email);
-                                if (context.mounted) {
-                                  GlassyNotification.show(context, message: 'Account removed.', isError: false);
-                                }
-                              },
-                              child: Container(
-                                width: 26, height: 26,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEE2E2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(Icons.delete_outline, size: 13, color: Color(0xFFEF4444)),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.chevron_right, size: 14, color: Color(0xFFCBD5E1)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-
   void _showResetSuccessDialog(String email) {
     showDialog(
       context: context,
@@ -1010,16 +824,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 hint: _isSignUp ? 'Email' : 'User Name',
                 icon: Icons.person_outline,
-                suffixWidget: _savedAccounts.isNotEmpty && !_isSignUp
-                    ? GestureDetector(
-                        onTap: _showSavedAccountsSheet,
-                        child: Icon(
-                          Icons.arrow_drop_down,
-                          color: const Color(0xFF5A5A5A).withValues(alpha: 0.7),
-                          size: 22,
-                        ),
-                      )
-                    : null,
               ),
               const SizedBox(height: 16),
 
