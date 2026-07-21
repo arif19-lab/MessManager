@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Custom Editor/AI files
+.continue/
+.kilo/
+.qodo/
+build_log_*.txt
+flutter_run_*.txt
+scratch_color_report.txt
+flutter_01.png
+revert_fried_fine.ps1
+build_app.ps1
+build_apk.ps1
+readfile.ps1
