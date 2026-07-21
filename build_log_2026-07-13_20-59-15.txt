@@ -1,0 +1,3 @@
+[20:59:16] Cleaning project...
+[20:59:30] Clean complete.
+[20:59:30] Build finished at 20:59:30 | Total: 0.2 min

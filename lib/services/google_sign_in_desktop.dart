@@ -9,7 +9,8 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
 class GoogleSignInDesktop {
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
+  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static bool _googleInitialized = false;
   static GoogleSignIn get googleSignIn => _googleSignIn;
 
   static Future<void> disconnect() async {
@@ -29,11 +30,15 @@ class GoogleSignInDesktop {
 
     try {
       if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-        final googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) return null;
-        final googleAuth = await googleUser.authentication;
+        if (!_googleInitialized) {
+          await GoogleSignIn.instance.initialize(
+            clientId: '716451290126-vetvab60g1qc38koce9tk1te32clk6m9.apps.googleusercontent.com',
+          );
+          _googleInitialized = true;
+        }
+        final googleUser = await GoogleSignIn.instance.authenticate();
+        final googleAuth = googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         return await FirebaseAuth.instance.signInWithCredential(credential);

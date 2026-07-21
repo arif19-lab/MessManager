@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/bangla_localizations.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -18,6 +19,7 @@ class PaymentsScreen extends StatefulWidget {
 class _PaymentsScreenState extends State<PaymentsScreen> {
   @override
   Widget build(BuildContext context) {
+    final bn = BanglaLocalizations.of(context);
     final provider = Provider.of<MessProvider>(context);
     final payments = provider.payments;
     final totalPayments = provider.totalPayments;
@@ -45,7 +47,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 // Desktop Header Title
                 if (isDesktop) ...[
                   Text(
-                    'Mess Payments',
+                    bn.messPayments,
+
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 24,
@@ -54,7 +57,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Track member payments and advance deposits',
+                    bn.paymentsDesc,
+
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 12,
@@ -77,7 +81,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.24), width: 1.0),
                       ),
                       child: Text(
-                        'Payments',
+                        bn.messPayments,
+
                         style: TextStyle(
                           color: isDark ? Colors.white : const Color(0xFF1E293B),
                           fontWeight: FontWeight.bold,
@@ -112,7 +117,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                                     Icon(Icons.add_circle_outline_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Add Payment',
+                                      bn.addPayment,
+
                                       style: TextStyle(
                                         color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                         fontWeight: FontWeight.bold,
@@ -135,7 +141,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.24), width: 1.0),
                           ),
                           child: Text(
-                            'Total = ${totalPayments.toInt()}',
+                            '${bn.total} = ${totalPayments.toInt()}',
+
                             style: TextStyle(
                               color: isDark ? Colors.white : const Color(0xFF1E293B),
                               fontWeight: FontWeight.bold,
@@ -159,7 +166,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               Icon(Icons.payment_outlined, size: 48, color: Colors.grey[400]),
                               const SizedBox(height: 8),
                               Text(
-                                'No payments recorded yet',
+                                bn.noPaymentsYet,
+
                                 style: TextStyle(
                                   color: Colors.grey[500],
                                   fontSize: 16,
@@ -230,7 +238,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             Icon(Icons.add_circle_outline_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'Add Payment',
+                              bn.addPayment,
+
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                 fontWeight: FontWeight.bold,
@@ -487,7 +496,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Payment Record',
+                        '${BanglaLocalizations.of(context).addPaymentRecord}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -496,11 +505,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Member Selection Panel
-                            const Align(
+                            Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Select Member',
-                                style: TextStyle(
+                                '${BanglaLocalizations.of(context).selectMember2}',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF64748B),
@@ -542,7 +551,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -569,7 +578,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(BanglaLocalizations.of(context).save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -590,6 +599,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -605,7 +615,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     color: themeProvider.resolveColor(
                       light: Colors.white,
                       dark: const Color(0xFF0A0A0A),
-                    ),                     border: null,
+                    ),                     border: Border.all(
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -620,7 +633,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Edit Payment Details',
+                        '${BanglaLocalizations.of(context).editPayment}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -628,11 +641,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Align(
+                            Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Select Member',
-                                style: TextStyle(
+                                '${BanglaLocalizations.of(context).selectMember2}',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF64748B),
@@ -650,7 +663,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               controller: amountController,
                               keyboardType: TextInputType.number,
                               decoration: InputDecoration(
-                                labelText: 'Payment Amount (BDT)',
+                                labelText: BanglaLocalizations.of(context).paymentAmount,
                                 labelStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                                 prefixIcon: Icon(Icons.monetization_on_outlined, color: Colors.grey[400], size: 18),
                                 enabledBorder: OutlineInputBorder(
@@ -673,7 +686,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -691,7 +704,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(BanglaLocalizations.of(context).save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -709,6 +722,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   void _showDeleteConfirmDialog(BuildContext context, MessProvider provider, Payment payment) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -718,14 +732,20 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             dark: const Color(0xFF0A0A0A),
 
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
           title: Text(
-            'Delete Payment',
+            '${BanglaLocalizations.of(context).deletePayment}',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          content: const Text(
-            'Are you sure you want to delete this payment record?',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          content: Text(
+            '${BanglaLocalizations.of(context).paymentDeleteConfirm}',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           actions: [
             TextButton(
@@ -738,7 +758,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 Navigator.pop(context);
                 GlassyNotification.show(context, message: 'Removed payment record.');
               },
-              child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).delete, style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );

@@ -3,15 +3,18 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:flutter/services.dart';
 import 'providers/mess_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/language_provider.dart';
 import 'screens/splash_screen.dart';
 import 'package:device_preview/device_preview.dart';
 import 'services/firebase_service.dart';
 import 'firebase_options.dart';
 import 'widgets/theme_transition_wrapper.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/bangla_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +35,12 @@ void main() async {
 
   runApp(
     DevicePreview(
-      enabled: true,
+      enabled: !kReleaseMode, // Set to true to enable device preview
       builder: (context) => MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => MessProvider()),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ],
         child: const MessManagerApp(),
       ),
@@ -59,26 +63,42 @@ class MessManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return MaterialApp(
-          locale: DevicePreview.locale(context),
-          scrollBehavior: const NoScrollbarBehavior(),
-          builder: (context, child) {
-            return ThemeTransitionWrapper(
-              child: DevicePreview.appBuilder(context, child ?? const SizedBox.shrink()),
-            );
-          },
-          themeAnimationDuration: Duration.zero,
-          navigatorKey: navigatorKey,
-          title: 'Mess Manager',
-          debugShowCheckedModeBanner: false,
-          themeMode: themeProvider.themeMode,
-          theme: _buildLightTheme(),
-          darkTheme: _buildDarkTheme(),
-          home: const SplashScreen(),
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return MaterialApp(
+      locale: languageProvider.locale,
+      scrollBehavior: const NoScrollbarBehavior(),
+      builder: (context, child) {
+        return ThemeTransitionWrapper(
+          child: DevicePreview.appBuilder(context, child ?? const SizedBox.shrink()),
         );
       },
+      localizationsDelegates: const [
+        BanglaLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('bn', 'BD'),
+      ],
+      localeResolutionCallback: (locale, supportedLocales) {
+        for (var supported in supportedLocales) {
+          if (supported.languageCode == locale?.languageCode) {
+            return supported;
+          }
+        }
+        return const Locale('en');
+      },
+      themeAnimationDuration: Duration.zero,
+      navigatorKey: navigatorKey,
+      title: 'Mess Manager',
+      debugShowCheckedModeBanner: false,
+      themeMode: themeProvider.themeMode,
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      home: const SplashScreen(),
     );
   }
 

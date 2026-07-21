@@ -2,8 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/language_provider.dart';
 import '../widgets/theme_transition_wrapper.dart';
-import '../widgets/glassy_theme_switch.dart';
+import '../l10n/bangla_localizations.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -21,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Settings',
+              BanglaLocalizations.of(context).settings,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
@@ -31,7 +32,140 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Authentic Glassmorphic Appearance Card
+            // ── Theme Card (glassy background matching Language card) ──
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isDark
+                            ? [Colors.white.withValues(alpha: 0.15), Colors.white.withValues(alpha: 0.05)]
+                            : [Colors.white, const Color(0xFFF1F5F9)],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : const Color(0xFFE2E8F0),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    BanglaLocalizations.of(context).appearance,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Dual Capsule Switches
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _NeumorphicSwitch(
+                          isActive: !isDark,
+                          isDark: isDark,
+                          onTap: () => _triggerThemeTransition(context, themeProvider, false),
+                          icon: Icons.wb_sunny_rounded,
+                          iconColor: Colors.amber,
+                          glowColor: Colors.amber,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _NeumorphicSwitch(
+                          isActive: isDark,
+                          isDark: isDark,
+                          onTap: () => _triggerThemeTransition(context, themeProvider, true),
+                          icon: Icons.nightlight_round,
+                          iconColor: const Color(0xFFFFD166),
+                          glowColor: const Color(0xFFFFD166),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Light / Dark text buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _triggerThemeTransition(context, themeProvider, false),
+                          child: Container(
+                            height: 38,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2D3748) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFF0F172A).withValues(alpha: 0.1),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Text(
+                              BanglaLocalizations.of(context).light,
+                              style: TextStyle(
+                                color: isDark ? Colors.grey[300] : const Color(0xFF475569),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _triggerThemeTransition(context, themeProvider, true),
+                          child: Container(
+                            height: 38,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2D3748) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFF0F172A).withValues(alpha: 0.1),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Text(
+                              BanglaLocalizations.of(context).dark,
+                              style: TextStyle(
+                                color: isDark ? Colors.grey[300] : const Color(0xFF475569),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Language Section ──
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
@@ -49,30 +183,22 @@ class SettingsScreen extends StatelessWidget {
                         end: Alignment.bottomRight,
                         colors: isDark
                             ? [Colors.white.withValues(alpha: 0.15), Colors.white.withValues(alpha: 0.05)]
-                            : [Colors.white, const Color(0xFFF1F5F9)], // Pristine glossy white for light mode
+                            : [Colors.white, const Color(0xFFF1F5F9)],
                       ),
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
                         color: isDark 
                             ? Colors.white.withValues(alpha: 0.2) 
-                            : const Color(0xFFE2E8F0), // Subtle light border
+                            : const Color(0xFFE2E8F0),
                         width: 1.5,
                       ),
                     ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Left Side Content
-                  Expanded(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Elegant Minimal Title
                         Text(
-                          'Appearance',
+                          BanglaLocalizations.of(context).language,
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -81,9 +207,8 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Professional Accent Subtitle
                         Text(
-                          'Visual Theme',
+                          BanglaLocalizations.of(context).selectLanguage,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -91,33 +216,88 @@ class SettingsScreen extends StatelessWidget {
                             color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        // Description text
-                        Text(
-                          'Choose your preferred style',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.grey[400] : const Color(0xFF475569),
-                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _LanguageTogglePillMobile(
+                                label: 'English',
+                                isSelected: !context.watch<LanguageProvider>().isBangla,
+                                isDark: isDark,
+                                onTap: () {
+                                  context.read<LanguageProvider>().setLocale(const Locale('en'));
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _LanguageTogglePillMobile(
+                                label: 'বাংলা',
+                                isSelected: context.watch<LanguageProvider>().isBangla,
+                                isDark: isDark,
+                                onTap: () {
+                                  context.read<LanguageProvider>().setLocale(const Locale('bn', 'BD'));
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  
-                  // Glassy Appearance Switch
-                  GlassyThemeSwitch(
-                    themeProvider: themeProvider,
-                    onToggle: () => _triggerThemeTransition(context, themeProvider, !isDark),
-                  ),
-                ],
+                ),
               ),
-            ),
-              ),
-            ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageTogglePillMobile extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _LanguageTogglePillMobile({
+    required this.label,
+    required this.isSelected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF134E4A) : const Color(0xFF0D9488))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.4)),
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.grey[300] : const Color(0xFF475569)),
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );

@@ -58,6 +58,7 @@ class Member {
   final bool isActive;
   final bool isActiveToday;
   final double totalMeals;
+  final double guestMeals;
   final double payments;
   final double individualExpenses;
   final double friedFine;
@@ -73,6 +74,7 @@ class Member {
     this.isActive = true,
     this.isActiveToday = true,
     this.totalMeals = 0.0,
+    this.guestMeals = 0.0,
     this.payments = 0.0,
     this.individualExpenses = 0.0,
     this.friedFine = 0.0,
@@ -89,6 +91,7 @@ class Member {
     bool? isActive,
     bool? isActiveToday,
     double? totalMeals,
+    double? guestMeals,
     double? payments,
     double? individualExpenses,
     double? friedFine,
@@ -104,6 +107,7 @@ class Member {
       isActive: isActive ?? this.isActive,
       isActiveToday: isActiveToday ?? this.isActiveToday,
       totalMeals: totalMeals ?? this.totalMeals,
+      guestMeals: guestMeals ?? this.guestMeals,
       payments: payments ?? this.payments,
       individualExpenses: individualExpenses ?? this.individualExpenses,
       friedFine: friedFine ?? this.friedFine,
@@ -122,6 +126,7 @@ class Member {
       'isActive': isActive,
       'isActiveToday': isActiveToday,
       'totalMeals': totalMeals,
+      'guestMeals': guestMeals,
       'payments': payments,
       'individualExpenses': individualExpenses,
       'friedFine': friedFine,
@@ -140,6 +145,7 @@ class Member {
       isActive: map['isActive'] ?? true,
       isActiveToday: map['isActiveToday'] ?? true,
       totalMeals: (map['totalMeals'] ?? 0.0).toDouble(),
+      guestMeals: (map['guestMeals'] ?? 0.0).toDouble(),
       payments: (map['payments'] ?? 0.0).toDouble(),
       individualExpenses: (map['individualExpenses'] ?? 0.0).toDouble(),
       friedFine: (map['friedFine'] ?? 0.0).toDouble(),
@@ -365,6 +371,58 @@ class FriedFineItem {
       memberId: map['memberId'] ?? '',
       amount: (map['amount'] ?? 0.0).toDouble(),
       date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
+      cycleId: map['cycleId'] ?? '',
+    );
+  }
+}
+
+class GuestMeal {
+  final String id;
+  final String memberId;
+  final String dateString;
+  final int count;
+  final String cycleId;
+
+  GuestMeal({
+    required this.id,
+    required this.memberId,
+    required this.dateString,
+    this.count = 1,
+    this.cycleId = '',
+  });
+
+  GuestMeal copyWith({
+    String? id,
+    String? memberId,
+    String? dateString,
+    int? count,
+    String? cycleId,
+  }) {
+    return GuestMeal(
+      id: id ?? this.id,
+      memberId: memberId ?? this.memberId,
+      dateString: dateString ?? this.dateString,
+      count: count ?? this.count,
+      cycleId: cycleId ?? this.cycleId,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'memberId': memberId,
+      'dateString': dateString,
+      'count': count,
+      'cycleId': cycleId,
+    };
+  }
+
+  factory GuestMeal.fromMap(Map<String, dynamic> map) {
+    return GuestMeal(
+      id: map['id'] ?? '',
+      memberId: map['memberId'] ?? '',
+      dateString: map['dateString'] ?? '',
+      count: (map['count'] ?? 0),
       cycleId: map['cycleId'] ?? '',
     );
   }

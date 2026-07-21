@@ -17,6 +17,7 @@ class MessProvider extends ChangeNotifier {
   final List<Payment> _payments = [];
   final List<ShopDueItem> _shopDueItems = [];
   final List<FriedFineItem> _friedFineItems = [];
+  final List<GuestMeal> _guestMealRecords = [];
   final List<DailyMeal> _dailyMeals = [];
   final List<BillingCycle> _billingCycles = [];
 
@@ -216,24 +217,35 @@ class MessProvider extends ChangeNotifier {
       );
       _subscriptions.add(
         FirebaseService().dailyMealsStream.listen((snapshot) {
+          bool mutated = false;
           for (final change in snapshot.docChanges) {
             final item = DailyMeal.fromMap(change.doc.data() as Map<String, dynamic>);
             switch (change.type) {
               case DocumentChangeType.added:
                 if (!_dailyMeals.any((d) => d.id == item.id)) {
                   _dailyMeals.add(item);
+                  mutated = true;
                 }
                 break;
               case DocumentChangeType.modified:
                 final idx = _dailyMeals.indexWhere((d) => d.id == item.id);
-                if (idx != -1) _dailyMeals[idx] = item;
+                if (idx != -1) {
+                  final existing = _dailyMeals[idx];
+                  if (existing.breakfast != item.breakfast ||
+                      existing.lunch != item.lunch ||
+                      existing.dinner != item.dinner) {
+                    _dailyMeals[idx] = item;
+                    mutated = true;
+                  }
+                }
                 break;
               case DocumentChangeType.removed:
                 _dailyMeals.removeWhere((d) => d.id == item.id);
+                mutated = true;
                 break;
             }
           }
-          notifyListeners();
+          if (mutated) notifyListeners();
         }),
       );
       _subscriptions.add(
@@ -281,6 +293,28 @@ class MessProvider extends ChangeNotifier {
         }),
       );
       _subscriptions.add(
+        FirebaseService().guestMealsStream.listen((snapshot) {
+          for (final change in snapshot.docChanges) {
+            final item = GuestMeal.fromMap(change.doc.data() as Map<String, dynamic>);
+            switch (change.type) {
+              case DocumentChangeType.added:
+                if (!_guestMealRecords.any((g) => g.id == item.id)) {
+                  _guestMealRecords.add(item);
+                }
+                break;
+              case DocumentChangeType.modified:
+                final idx = _guestMealRecords.indexWhere((g) => g.id == item.id);
+                if (idx != -1) _guestMealRecords[idx] = item;
+                break;
+              case DocumentChangeType.removed:
+                _guestMealRecords.removeWhere((g) => g.id == item.id);
+                break;
+            }
+          }
+          notifyListeners();
+        }),
+      );
+      _subscriptions.add(
         FirebaseService().friedFineItemsStream.listen((snapshot) {
           for (final change in snapshot.docChanges) {
             final item = FriedFineItem.fromMap(change.doc.data() as Map<String, dynamic>);
@@ -311,33 +345,50 @@ class MessProvider extends ChangeNotifier {
   Future<void> _loadFromFirestore() async {
     try {
       final fs = FirebaseService();
+      
+      // Load all 7 collections in parallel with an 8-second timeout to prevent hangs
+      final results = await Future.wait([
+        fs.getMembers(),
+        fs.getExpenses(),
+        fs.getPayments(),
+        fs.getDailyMeals(),
+        fs.getBillingCycles(),
+        fs.getShopDueItems(),
+        fs.getFriedFineItems(),
+        fs.getGuestMeals(),
+      ]).timeout(const Duration(seconds: 8));
+
       // Always clear before loading to prevent stale data when switching modes
       _members.clear();
-      _members.addAll(await fs.getMembers());
+      _members.addAll(results[0] as List<Member>);
 
       _expenses.clear();
-      _expenses.addAll(await fs.getExpenses());
+      _expenses.addAll(results[1] as List<Expense>);
 
       _payments.clear();
-      _payments.addAll(await fs.getPayments());
+      _payments.addAll(results[2] as List<Payment>);
 
       _dailyMeals.clear();
-      _dailyMeals.addAll(await fs.getDailyMeals());
+      _dailyMeals.addAll(results[3] as List<DailyMeal>);
 
+      final cycles = results[4] as List<BillingCycle>;
       _billingCycles.clear();
-      final cycles = await fs.getBillingCycles();
       _billingCycles.addAll(cycles);
       final active = cycles.where((c) => c.isActive).firstOrNull;
       if (active != null) _activeCycleId = active.id;
 
       _shopDueItems.clear();
-      _shopDueItems.addAll(await fs.getShopDueItems());
+      _shopDueItems.addAll(results[5] as List<ShopDueItem>);
 
       _friedFineItems.clear();
-      _friedFineItems.addAll(await fs.getFriedFineItems());
+      _friedFineItems.addAll(results[6] as List<FriedFineItem>);
 
+      _guestMealRecords.clear();
+      _guestMealRecords.addAll(results[7] as List<GuestMeal>);
+
+      await _migrateLegacyEmptyCycleIds();
       notifyListeners();
-      debugPrint('Data loaded from Firestore');
+      debugPrint('Data loaded from Firestore in parallel');
     } catch (e) {
       debugPrint('Error loading from Firestore (using local data): $e');
       rethrow;
@@ -383,6 +434,8 @@ class MessProvider extends ChangeNotifier {
       _shopDueItems.addAll(await LocalDatabase.getShopDueItems());
       _friedFineItems.clear();
       _friedFineItems.addAll(await LocalDatabase.getFriedFineItems());
+      _guestMealRecords.clear();
+      _guestMealRecords.addAll(await LocalDatabase.getGuestMeals());
       _dailyMeals.clear();
       _dailyMeals.addAll(await LocalDatabase.getDailyMeals());
 
@@ -391,6 +444,7 @@ class MessProvider extends ChangeNotifier {
         await _migrateFromPrefs();
       }
 
+      await _migrateLegacyEmptyCycleIds();
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading from database: $e');
@@ -448,6 +502,13 @@ class MessProvider extends ChangeNotifier {
         _friedFineItems.addAll(decoded.map((f) => FriedFineItem.fromMap(f)).toList());
       }
 
+      final guestMealsString = prefs.getString('mess_guest_meals');
+      if (guestMealsString != null) {
+        final List<dynamic> decoded = json.decode(guestMealsString);
+        _guestMealRecords.clear();
+        _guestMealRecords.addAll(decoded.map((g) => GuestMeal.fromMap(g)).toList());
+      }
+
       final dailyMealsString = prefs.getString('mess_daily_meals');
       if (dailyMealsString != null) {
         final List<dynamic> decoded = json.decode(dailyMealsString);
@@ -464,6 +525,64 @@ class MessProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _migrateLegacyEmptyCycleIds() async {
+    if (_activeCycleId.isEmpty) return;
+    bool needsUpdate = false;
+    for (int i = 0; i < _members.length; i++) {
+      if (_members[i].cycleId.isEmpty) {
+        _members[i] = _members[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveMember(_members[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _expenses.length; i++) {
+      if (_expenses[i].cycleId.isEmpty) {
+        _expenses[i] = _expenses[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveExpense(_expenses[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _payments.length; i++) {
+      if (_payments[i].cycleId.isEmpty) {
+        _payments[i] = _payments[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().savePayment(_payments[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _dailyMeals.length; i++) {
+      if (_dailyMeals[i].cycleId.isEmpty) {
+        _dailyMeals[i] = _dailyMeals[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveDailyMeal(_dailyMeals[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _shopDueItems.length; i++) {
+      if (_shopDueItems[i].cycleId.isEmpty) {
+        _shopDueItems[i] = _shopDueItems[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveShopDueItem(_shopDueItems[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _friedFineItems.length; i++) {
+      if (_friedFineItems[i].cycleId.isEmpty) {
+        _friedFineItems[i] = _friedFineItems[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveFriedFineItem(_friedFineItems[i]);
+        needsUpdate = true;
+      }
+    }
+    for (int i = 0; i < _guestMealRecords.length; i++) {
+      if (_guestMealRecords[i].cycleId.isEmpty) {
+        _guestMealRecords[i] = _guestMealRecords[i].copyWith(cycleId: _activeCycleId);
+        if (_isFirestoreMode) FirebaseService().saveGuestMeal(_guestMealRecords[i]);
+        needsUpdate = true;
+      }
+    }
+    if (needsUpdate && !_isFirestoreMode) {
+      await _saveToDatabase();
+    }
+    if (needsUpdate) debugPrint('Legacy items migrated to active cycle $_activeCycleId.');
+  }
+
   Future<void> _saveToDatabase() async {
     if (_isFirestoreMode) return;
     try {
@@ -474,6 +593,7 @@ class MessProvider extends ChangeNotifier {
         payments: _payments,
         shopDueItems: _shopDueItems,
         friedFineItems: _friedFineItems,
+        guestMeals: _guestMealRecords,
         dailyMeals: _dailyMeals,
         activeCycleId: _activeCycleId,
       );
@@ -531,22 +651,27 @@ class MessProvider extends ChangeNotifier {
     final todayString = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     // 1. Calculate Members (Heavy loop)
-    _cachedMembers = _members.where((m) => m.cycleId.isEmpty || m.cycleId == currentCycleId).map((member) {
+    _cachedMembers = _members.where((m) => m.cycleId == currentCycleId).map((member) {
       double mealsCount = 0.0;
-      final memberMeals = _dailyMeals.where((dm) => dm.memberId == member.id && (dm.cycleId.isEmpty || dm.cycleId == currentCycleId));
+      final memberMeals = _dailyMeals.where((dm) => dm.memberId == member.id && (dm.cycleId == currentCycleId));
       for (var dm in memberMeals) {
         mealsCount += (dm.breakfast ? 1.0 : 0.0) + (dm.lunch ? 1.0 : 0.0) + (dm.dinner ? 1.0 : 0.0);
       }
       double paymentsCount = _payments
-          .where((p) => p.memberId == member.id && (p.cycleId.isEmpty || p.cycleId == currentCycleId))
+          .where((p) => p.memberId == member.id && (p.cycleId == currentCycleId))
           .fold(0.0, (sum, item) => sum + item.amount);
           
       double finesCount = _friedFineItems
-          .where((f) => f.memberId == member.id && (f.cycleId.isEmpty || f.cycleId == currentCycleId))
+          .where((f) => f.memberId == member.id && (f.cycleId == currentCycleId))
           .fold(0.0, (sum, item) => sum + item.amount);
+
+      double guestMealsCount = _guestMealRecords
+          .where((g) => g.memberId == member.id && (g.cycleId == currentCycleId))
+          .fold(0.0, (sum, item) => sum + (item.count).toDouble());
           
       return member.copyWith(
         totalMeals: mealsCount, 
+        guestMeals: guestMealsCount,
         payments: paymentsCount,
         friedFine: finesCount,
       );
@@ -554,19 +679,19 @@ class MessProvider extends ChangeNotifier {
 
     // 2. Simple folds
     _cachedShopDue = _shopDueItems
-        .where((s) => s.cycleId.isEmpty || s.cycleId == currentCycleId)
+        .where((s) => s.cycleId == currentCycleId)
         .fold(0.0, (sum, item) => sum + item.amount);
 
     _cachedTotalExpenses = _expenses
-        .where((e) => e.cycleId.isEmpty || e.cycleId == currentCycleId)
+        .where((e) => e.cycleId == currentCycleId)
         .fold(0.0, (sum, item) => sum + item.amount);
 
     _cachedTotalPayments = _payments
-        .where((p) => p.cycleId.isEmpty || p.cycleId == currentCycleId)
+        .where((p) => p.cycleId == currentCycleId)
         .fold(0.0, (sum, item) => sum + item.amount);
 
     _cachedTotalFriedFine = _friedFineItems
-        .where((item) => item.cycleId.isEmpty || item.cycleId == currentCycleId)
+        .where((item) => item.cycleId == currentCycleId)
         .fold(0.0, (sum, item) => sum + item.amount);
 
     // 3. Dependent calculations
@@ -574,13 +699,13 @@ class MessProvider extends ChangeNotifier {
     _cachedMealRate = _cachedTotalMeals == 0 ? 0.0 : _cachedTotalExpenses / _cachedTotalMeals;
 
     // 4. Today calculations
-    _cachedTotalActiveMembers = _members.where((m) => m.isActive).length;
+    _cachedTotalActiveMembers = _cachedMembers.where((m) => m.isActive).length;
 
     int todayActive = 0;
     double todayMealsSum = 0.0;
-    final todayMealsList = _dailyMeals.where((dm) => dm.dateString == todayString && (dm.cycleId.isEmpty || dm.cycleId == currentCycleId)).toList();
+    final todayMealsList = _dailyMeals.where((dm) => dm.dateString == todayString && (dm.cycleId == currentCycleId)).toList();
     
-    for (var m in _members) {
+    for (var m in _cachedMembers) {
       if (m.isActive) {
         final dm = todayMealsList.firstWhere(
           (d) => d.memberId == m.id,
@@ -607,18 +732,21 @@ class MessProvider extends ChangeNotifier {
   List<FriedFineItem> get allFriedFineItems => _friedFineItems;
   List<DailyMeal> get dailyMeals => _dailyMeals;
 
+  List<GuestMeal> get guestMeals =>
+      _guestMealRecords.where((g) => g.cycleId == _activeCycleId).toList();
+
   // Cycle-filtered getters — also include items with empty cycleId (legacy data)
   List<Expense> get expenses =>
-      _expenses.where((e) => e.cycleId.isEmpty || e.cycleId == _activeCycleId).toList();
+      _expenses.where((e) => e.cycleId == _activeCycleId).toList();
 
   List<Payment> get payments =>
-      _payments.where((p) => p.cycleId.isEmpty || p.cycleId == _activeCycleId).toList();
+      _payments.where((p) => p.cycleId == _activeCycleId).toList();
 
   List<ShopDueItem> get shopDueItems =>
-      _shopDueItems.where((s) => s.cycleId.isEmpty || s.cycleId == _activeCycleId).toList();
+      _shopDueItems.where((s) => s.cycleId == _activeCycleId).toList();
 
   List<FriedFineItem> get friedFineItems =>
-      _friedFineItems.where((f) => f.cycleId.isEmpty || f.cycleId == _activeCycleId).toList();
+      _friedFineItems.where((f) => f.cycleId == _activeCycleId).toList();
 
   double get shopDue => _cachedShopDue;
 
@@ -635,14 +763,15 @@ class MessProvider extends ChangeNotifier {
   double getMemberBazarSpent(String memberId) {
     final String currentCycleId = _activeCycleId;
     return _expenses
-        .where((e) => e.buyerId == memberId && (e.cycleId.isEmpty || e.cycleId == currentCycleId))
+        .where((e) => e.buyerId == memberId && (e.cycleId == currentCycleId))
         .fold(0.0, (sum, item) => sum + item.amount);
   }
 
   // Get balance for specific member (Payments - Bill)
+  // Guest meals are charged at the same meal rate — member pays for the guests they bring
   double getMemberBalance(Member member) {
     double totalCredit = member.payments;
-    double totalCost = member.totalMeals * mealRate;
+    double totalCost = (member.totalMeals + member.guestMeals) * mealRate;
     return totalCredit - totalCost;
   }
 
@@ -689,9 +818,6 @@ class MessProvider extends ChangeNotifier {
     );
     _billingCycles.add(newCycle);
     _activeCycleId = newCycleId;
-    for (int i = 0; i < _members.length; i++) {
-      _members[i] = _members[i].copyWith(friedFine: 0.0);
-    }
     if (_isFirestoreMode) {
       for (final c in _billingCycles) {
         FirebaseService().saveBillingCycle(c);
@@ -787,12 +913,85 @@ class MessProvider extends ChangeNotifier {
       }
     }
     if (_isFirestoreMode) {
-      for (final m in changed) {
-        FirebaseService().saveDailyMeal(m);
-      }
+      // Use batch write: ONE Firestore commit instead of N individual saves.
+      // This fires ONE snapshot event (not N), preventing rapid rebuilds.
+      FirebaseService().saveDataBatch(dailyMeals: changed);
     } else {
       for (final m in changed) {
         LocalDatabase.insertDailyMeal(m);
+      }
+    }
+    notifyListeners();
+  }
+
+  // --- Guest Meals Management ---
+  
+  List<GuestMeal> getGuestMealsForDate(String dateString) {
+    return _guestMealRecords.where((g) => 
+      g.dateString == dateString && 
+      (g.cycleId == _activeCycleId)
+    ).toList();
+  }
+
+  int getGuestMealCountForMember(String memberId, String dateString) {
+    final existing = _guestMealRecords.where((g) =>
+      g.memberId == memberId &&
+      g.dateString == dateString &&
+      (g.cycleId == _activeCycleId)
+    ).toList();
+    if (existing.isNotEmpty) {
+      return existing.first.count;
+    }
+    return 0;
+  }
+
+  void setGuestMealForMember(String memberId, String dateString, int count) {
+    // Remove existing record for this member+date
+    _guestMealRecords.removeWhere((g) =>
+      g.memberId == memberId &&
+      g.dateString == dateString &&
+      g.cycleId == _activeCycleId
+    );
+    
+    if (count > 0) {
+      final record = GuestMeal(
+        id: 'gm_${memberId}_$dateString',
+        memberId: memberId,
+        dateString: dateString,
+        count: count,
+        cycleId: _activeCycleId,
+      );
+      _guestMealRecords.add(record);
+      if (_isFirestoreMode) {
+        FirebaseService().saveGuestMeal(record);
+      } else {
+        LocalDatabase.insertGuestMeal(record);
+      }
+    } else {
+      // Remove from DB/Firestore if count is 0
+      if (_isFirestoreMode) {
+        FirebaseService().deleteGuestMealDoc('gm_${memberId}_$dateString');
+      } else {
+        LocalDatabase.deleteGuestMeal('gm_${memberId}_$dateString');
+      }
+    }
+    notifyListeners();
+  }
+
+  void clearAllGuestMealsForDate(String dateString) {
+    final removed = _guestMealRecords.where((g) =>
+      g.dateString == dateString &&
+      g.cycleId == _activeCycleId
+    ).toList();
+    _guestMealRecords.removeWhere((g) =>
+      g.dateString == dateString &&
+      g.cycleId == _activeCycleId
+    );
+    for (final g in removed) {
+      if (_isFirestoreMode) {
+        FirebaseService().deleteGuestMealDoc(g.id);
+      } else {
+        LocalDatabase.deleteGuestMeal(g.id);
       }
     }
     notifyListeners();
@@ -861,7 +1060,7 @@ class MessProvider extends ChangeNotifier {
 
   void _syncMemberFriedFine(String memberId) {
     final total = _friedFineItems
-        .where((item) => item.memberId == memberId && (item.cycleId.isEmpty || item.cycleId == _activeCycleId))
+        .where((item) => item.memberId == memberId && (item.cycleId == _activeCycleId))
         .fold(0.0, (sum, item) => sum + item.amount);
     final memberIndex = _members.indexWhere((m) => m.id == memberId);
     if (memberIndex != -1) {
@@ -901,10 +1100,16 @@ class MessProvider extends ChangeNotifier {
     final removedMeals = _dailyMeals.where((dm) => dm.memberId == memberId).toList();
     final removedPayments = _payments.where((p) => p.memberId == memberId).toList();
     final removedFines = _friedFineItems.where((f) => f.memberId == memberId).toList();
+    final removedGuestMeals = _guestMealRecords.where((g) => g.memberId == memberId).toList();
+    final removedExpenses = _expenses.where((e) => e.buyerId == memberId).toList();
+    final removedShopDues = _shopDueItems.where((s) => s.buyerId == memberId).toList();
     _members.removeWhere((m) => m.id == memberId);
     _dailyMeals.removeWhere((dm) => dm.memberId == memberId);
     _payments.removeWhere((p) => p.memberId == memberId);
     _friedFineItems.removeWhere((f) => f.memberId == memberId);
+    _guestMealRecords.removeWhere((g) => g.memberId == memberId);
+    _expenses.removeWhere((e) => e.buyerId == memberId);
+    _shopDueItems.removeWhere((s) => s.buyerId == memberId);
     if (_isFirestoreMode) {
       FirebaseService().deleteMemberDoc(memberId);
       for (final meal in removedMeals) {
@@ -916,6 +1121,15 @@ class MessProvider extends ChangeNotifier {
       for (final f in removedFines) {
         FirebaseService().deleteFriedFineItemDoc(f.id);
       }
+      for (final g in removedGuestMeals) {
+        FirebaseService().deleteGuestMealDoc(g.id);
+      }
+      for (final e in removedExpenses) {
+        FirebaseService().deleteExpenseDoc(e.id);
+      }
+      for (final s in removedShopDues) {
+        FirebaseService().deleteShopDueItemDoc(s.id);
+      }
     } else {
       LocalDatabase.deleteMember(memberId);
       for (final meal in removedMeals) {
@@ -926,6 +1140,15 @@ class MessProvider extends ChangeNotifier {
       }
       for (final f in removedFines) {
         LocalDatabase.deleteFriedFineItem(f.id);
+      }
+      for (final g in removedGuestMeals) {
+        LocalDatabase.deleteGuestMeal(g.id);
+      }
+      for (final e in removedExpenses) {
+        LocalDatabase.deleteExpense(e.id);
+      }
+      for (final s in removedShopDues) {
+        LocalDatabase.deleteShopDueItem(s.id);
       }
     }
     notifyListeners();
@@ -1145,6 +1368,11 @@ class MessProvider extends ChangeNotifier {
       for (final f in cycleFines) {
         FirebaseService().deleteFriedFineItemDoc(f.id);
       }
+
+      final cycleGuestMeals = _guestMealRecords.where((g) => g.cycleId == cycleId).toList();
+      for (final g in cycleGuestMeals) {
+        FirebaseService().deleteGuestMealDoc(g.id);
+      }
     }
 
     _billingCycles.removeWhere((c) => c.id == cycleId);
@@ -1154,6 +1382,7 @@ class MessProvider extends ChangeNotifier {
     _expenses.removeWhere((e) => e.cycleId == cycleId);
     _shopDueItems.removeWhere((s) => s.cycleId == cycleId);
     _friedFineItems.removeWhere((f) => f.cycleId == cycleId);
+    _guestMealRecords.removeWhere((g) => g.cycleId == cycleId);
 
     if (!_isFirestoreMode) {
       _saveToDatabase();

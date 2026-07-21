@@ -1,0 +1,14 @@
+[13:09:14] Version: 1.0.0+12  ->  1.0.0+13
+[13:09:22] Build started at 2026-07-21 13:09:22
+[13:09:22] Cleaning project...
+[13:09:44] Clean complete.
+[13:09:44] === Building Android APK ===
+[13:16:18] ✅ Android build SUCCESS! (394.2 sec) | Size: 76.6 MB
+[13:16:18] === Building Web App ===
+[13:19:25] ✅ Web build SUCCESS! (187.3 sec)
+[13:19:25] Deploying to Firebase...
+[13:19:49] ✅ Firebase deploy SUCCESS! (23.6 sec)
+[13:19:49]    Live at: https://mess-manager-6dcce.web.app
+[13:19:49] === Building Windows App ===
+[13:29:54] ✅ Windows build SUCCESS! (605.5 sec) | Size: 15.1 MB
+[13:29:55] Build finished at 13:29:55 | Total: 20.7 min

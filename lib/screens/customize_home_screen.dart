@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/glassy_notification.dart';
 import '../widgets/theme_transition_wrapper.dart';
+import '../l10n/bangla_localizations.dart';
 
 class CustomizeHomeScreen extends StatefulWidget {
   const CustomizeHomeScreen({super.key});
@@ -94,7 +95,7 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Customize Home',
+          BanglaLocalizations.of(context).customizeHome,
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF1E293B),
             fontSize: 20,
@@ -114,8 +115,8 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
               ),
-              child: const Text(
-                'Save',
+              child: Text(
+                BanglaLocalizations.of(context).save,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -133,7 +134,7 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Select which cards to show on your dashboard',
+                BanglaLocalizations.of(context).selectCardsToShow,
                 style: TextStyle(
                   color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   fontSize: 14,
@@ -144,12 +145,12 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
 
               // ── Fullscreen Toggle Section (Mobile Only) ──
               if (!isDesktop) ...[
-                _buildSectionLabel('System', isDark),
+                _buildSectionLabel(BanglaLocalizations.of(context).system, isDark),
                 const SizedBox(height: 12),
                 _buildRowToggle(
                   icon: Icons.fullscreen_rounded,
-                  title: 'Full Screen Mode',
-                  subtitle: 'Hide status & navigation bars',
+                  title: BanglaLocalizations.of(context).fullScreenMode,
+                  subtitle: BanglaLocalizations.of(context).hideStatusBars,
                   value: fullscreenMode,
                   isDark: isDark,
                   onChanged: (val) => setState(() => fullscreenMode = val),
@@ -158,7 +159,7 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
               ],
 
               // ── Dashboard Cards Section ──
-              _buildSectionLabel('Dashboard Cards', isDark),
+              _buildSectionLabel(BanglaLocalizations.of(context).dashboardCards, isDark),
               const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -176,19 +177,21 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      _buildToggleCard('Meal Rate',       showMealRate,       (v) => setState(() => showMealRate       = v), isDark),
-                      _buildToggleCard('Active Members',  showActiveMembers,  (v) => setState(() => showActiveMembers  = v), isDark),
-                      _buildToggleCard('Meals Today',     showMealsToday,     (v) => setState(() => showMealsToday     = v), isDark),
-                      _buildToggleCard('Total Meals',     showTotalMeals,     (v) => setState(() => showTotalMeals     = v), isDark),
-                      _buildToggleCard('Total Expenses',  showTotalExpenses,  (v) => setState(() => showTotalExpenses  = v), isDark),
-                      _buildToggleCard('Total Payments',  showTotalPayments,  (v) => setState(() => showTotalPayments  = v), isDark),
-                      _buildToggleCard('Meal Balance',    showMealBalance,    (v) => setState(() => showMealBalance    = v), isDark),
-                      _buildToggleCard('Shop Due',        showShopDue,        (v) => setState(() => showShopDue        = v), isDark),
-                      _buildToggleCard('Feast & Fines',   showFriedFine,      (v) => setState(() => showFriedFine      = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardMealRate,       showMealRate,       (v) => setState(() => showMealRate       = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardActiveMembers,  showActiveMembers,  (v) => setState(() => showActiveMembers  = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardMealsToday,     showMealsToday,     (v) => setState(() => showMealsToday     = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardTotalMeals,     showTotalMeals,     (v) => setState(() => showTotalMeals     = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardExpenses,  showTotalExpenses,  (v) => setState(() => showTotalExpenses  = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardPayments,  showTotalPayments,  (v) => setState(() => showTotalPayments  = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardMealBalance,    showMealBalance,    (v) => setState(() => showMealBalance    = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardShopDue,        showShopDue,        (v) => setState(() => showShopDue        = v), isDark),
+                      _buildToggleCard(BanglaLocalizations.of(context).cardFeastFines,   showFriedFine,      (v) => setState(() => showFriedFine      = v), isDark),
                     ],
                   );
                 },
               ),
+
+              // (Language section moved to desktop settings panel)
 
             ],
           ),
@@ -369,7 +372,7 @@ class _TogglePillState extends State<_TogglePill> {
                   ],
                 ),
                 child: Text(
-                  widget.value ? 'On' : 'Off',
+                  widget.value ? BanglaLocalizations.of(context).onLabel : BanglaLocalizations.of(context).offLabel,
                   style: TextStyle(
                     color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
                     fontSize: 11,
@@ -384,3 +387,4 @@ class _TogglePillState extends State<_TogglePill> {
     );
   }
 }
+

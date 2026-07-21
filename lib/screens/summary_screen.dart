@@ -1,10 +1,7 @@
-import 'dart:io';
 import 'dart:ui';
 import '../providers/theme_provider.dart';
 import '../widgets/glass_dialog.dart';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -117,6 +114,7 @@ class SummaryScreen extends StatelessWidget {
   void _showDeleteCycleConfirmDialog(BuildContext context, MessProvider provider, BillingCycle cycle) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (ctx) {
         final themeProvider = Provider.of<ThemeProvider>(context);
         final isDark = themeProvider.isDarkMode;
@@ -127,7 +125,7 @@ class SummaryScreen extends StatelessWidget {
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
-              side: BorderSide(                 color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+              side: BorderSide(                 color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                 width: 1.5,
               ),
             ),
@@ -536,21 +534,18 @@ class SummaryScreen extends StatelessWidget {
     double totalPayments = provider.totalPayments;
     double totalCost = provider.totalExpenses;
     
-    // Simple calculation for Receivables (what people owe the mess) and Payables (what mess owes people or shop)
+    // Calculation for Receivables (members who overpaid can receive back) and Payables (members who still owe)
     double receivables = 0.0;
     double payables = 0.0;
     
     for (var m in provider.members) {
       double bal = provider.getMemberBalance(m);
       if (bal > 0) {
-        payables += bal; // Mess owes the member (they paid extra)
+        receivables += bal; // Member paid extra, can receive back
       } else if (bal < 0) {
-        receivables += bal.abs(); // Member owes the mess
+        payables += bal.abs(); // Member still owes
       }
     }
-    
-    // Add shop due to payables
-    payables += provider.shopDue;
 
     final currentCycle = provider.billingCycles.firstWhere(
       (c) => c.id == provider.activeCycleId,
@@ -667,7 +662,7 @@ class SummaryScreen extends StatelessWidget {
                            spacing: spacing,
                            runSpacing: spacing,
                            children: [
-                             buildCard('Current Meal Rate', '${mealRate.toStringAsFixed(2)} ৳', const Color(0xFF3B82F6)),
+                             buildCard('Meal Rate', '${mealRate.toStringAsFixed(2)} ৳', const Color(0xFF3B82F6)),
                              buildCard('Total Meals', totalMeals.toStringAsFixed(0), const Color(0xFF10B981)),
                              buildCard('Total Payments', '${totalPayments.toStringAsFixed(0)} ৳', const Color(0xFF8B5CF6)),
                              buildCard('Total Cost', '${totalCost.toStringAsFixed(0)} ৳', const Color(0xFFF97316)),
@@ -689,7 +684,9 @@ class SummaryScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: isDark ? Colors.grey[800]! : const Color(0xFFE2E8F0)),
                       ),
-                      child: Column(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Align(
@@ -710,8 +707,8 @@ class SummaryScreen extends StatelessWidget {
                             builder: (context, constraints) {
                               final sortedMembers = provider.members.where((m) => m.isActive).toList();
                               sortedMembers.sort((a, b) {
-                                double aDue = (a.totalMeals * mealRate) - a.payments;
-                                double bDue = (b.totalMeals * mealRate) - b.payments;
+                                double aDue = ((a.totalMeals + a.guestMeals) * mealRate) - a.payments;
+                                double bDue = ((b.totalMeals + b.guestMeals) * mealRate) - b.payments;
                                 int aGroup = aDue < 0 ? 1 : (aDue == 0 ? 2 : 3);
                                 int bGroup = bDue < 0 ? 1 : (bDue == 0 ? 2 : 3);
                                 if (aGroup != bGroup) {
@@ -785,7 +782,19 @@ class SummaryScreen extends StatelessWidget {
                                     TableRow(
                                       decoration: const BoxDecoration(color: Color(0xFF166534)),
                                       children: [
-                                        buildMobileTableHeaderCell('Member'),
+                                        Padding(
+                                            padding: const EdgeInsets.only(left: 12, right: 4, top: 10, bottom: 10),
+                                            child: Center(
+                                              child: Text(
+                                                'Member',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         buildMobileTableHeaderCell('Meals'),
                                         buildMobileTableHeaderCell('Bill'),
                                         buildMobileTableHeaderCell('Paid'),
@@ -795,7 +804,7 @@ class SummaryScreen extends StatelessWidget {
                                     ...sortedMembers.asMap().entries.map((entry) {
                                       final index = entry.key;
                                       final member = entry.value;
-                                      double memBill = member.totalMeals * mealRate;
+                                      double memBill = (member.totalMeals + member.guestMeals) * mealRate;
                                       double memPaid = member.payments;
                                       double memDue = memBill - memPaid;
 
@@ -845,7 +854,22 @@ class SummaryScreen extends StatelessWidget {
                                       return TableRow(
                                         decoration: BoxDecoration(color: rowBgColor),
                                         children: [
-                                          buildMobileTableCell(member.name, isBold: true, align: TextAlign.left),
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 12, right: 4, top: 10, bottom: 10),
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                member.name,
+                                                style: TextStyle(
+                                                  color: isDark ? Colors.white : Colors.black87,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 10.5,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
                                           buildMobileTableCell(member.totalMeals.toStringAsFixed(0)),
                                           buildMobileTableCell(memBill.toStringAsFixed(0)),
                                           buildMobileTableCell(member.payments.toStringAsFixed(0)),
@@ -870,7 +894,10 @@ class SummaryScreen extends StatelessWidget {
                                     border: TableBorder.all(color: isDark ? Colors.white24 : Colors.black87, width: 1.5),
                                     columnSpacing: constraints.maxWidth > 600 ? (constraints.maxWidth / 7) : 20,
                                     columns: const [
-                                      DataColumn(label: Text('Member Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                                      DataColumn(label: Padding(
+                                          padding: const EdgeInsets.only(left: 8),
+                                          child: Text('Member Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        )),
                                       DataColumn(label: Text('Total Meals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                                       DataColumn(label: Text('Bill (Tk)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                                       DataColumn(label: Text('Paid (Tk)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
@@ -879,7 +906,7 @@ class SummaryScreen extends StatelessWidget {
                                     rows: sortedMembers.asMap().entries.map((entry) {
                                       final index = entry.key;
                                       final member = entry.value;
-                                      double memBill = member.totalMeals * mealRate;
+                                      double memBill = (member.totalMeals + member.guestMeals) * mealRate;
                                       double memPaid = member.payments;
                                       double memDue = memBill - memPaid;
 
@@ -925,8 +952,10 @@ class SummaryScreen extends StatelessWidget {
 
                                       return DataRow(
                                         color: WidgetStateProperty.all(rowBgColor),
-                                        cells: [
-                                          DataCell(Text(member.name, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500))),
+                                        cells: [                                            DataCell(Padding(
+                                              padding: const EdgeInsets.only(left: 8),
+                                              child: Text(member.name, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500)),
+                                            )),
                                           DataCell(Text(member.totalMeals.toStringAsFixed(0), style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
                                           DataCell(Text(memBill.toStringAsFixed(0), style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
                                           DataCell(Text(memPaid.toStringAsFixed(0), style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
@@ -938,8 +967,285 @@ class SummaryScreen extends StatelessWidget {
                                 ),
                               );
                             },
+                          ),                          ],
+                        ),
+                      ),
+                      ),
+                          // === Guest Meals Report Section ===
+                    SizedBox(height: isDesktop ? 24.0 : 16.0),
+                    
+                    Container(
+                      decoration: BoxDecoration(
+                        color: themeProvider.resolveColor(
+                          light: Colors.white,
+                          dark: const Color(0xFF0A0A0A),
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? Colors.grey[800]! : const Color(0xFFE2E8F0)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 20, top: 16, right: 20, bottom: 8),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'Guest Meals Report',
+                                    style: TextStyle(
+                                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                    ),
+                                    child: Text(
+                                      'Guest = ${provider.members.fold<double>(0, (sum, m) => sum + m.guestMeals).toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              'Total guest meals per member and the additional cost charged at the current meal rate.',
+                              style: TextStyle(
+                                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isDesktop ? 12 : 8),
+                          
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final membersWithGuests = provider.members
+                                  .where((m) => m.guestMeals > 0)
+                                  .toList()
+                                ..sort((a, b) => b.guestMeals.compareTo(a.guestMeals));
+                              
+                              if (membersWithGuests.isEmpty) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Center(
+                                    child: Column(
+                                      children: [
+                                        Icon(Icons.people_outline_rounded, size: 32, color: Colors.grey[400]),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'No guest meals recorded yet',
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Go to Meals screen → Guest Meal to add',
+                                          style: TextStyle(
+                                            color: isDark ? Colors.grey[600] : Colors.grey[400],
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              if (constraints.maxWidth <= 600) {
+                                return Table(
+                                  border: TableBorder.all(
+                                    color: isDark ? Colors.white24 : Colors.black87,
+                                    width: 1.5,
+                                  ),
+                                  columnWidths: const {
+                                    0: FlexColumnWidth(2.5),
+                                    1: FlexColumnWidth(1.5),
+                                    2: FlexColumnWidth(2),
+                                    3: FlexColumnWidth(2.5),
+                                  },
+                                  children: [
+                                    TableRow(
+                                      decoration: const BoxDecoration(color: Color(0xFF0D9488)),
+                                      children: [
+                                        Padding(
+                                            padding: const EdgeInsets.only(left: 12, right: 4, top: 10, bottom: 10),
+                                            child: Center(
+                                              child: Text(
+                                                'Member',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        _buildGuestHdrCell('Guests'),
+                                        _buildGuestHdrCell('Rate'),
+                                        _buildGuestHdrCell('Cost'),
+                                      ],
+                                    ),
+                                    ...membersWithGuests.map((m) {
+                                      final guestCost = m.guestMeals * mealRate;
+                                      return TableRow(
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 12, right: 4, top: 10, bottom: 10),
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                m.name,
+                                                style: TextStyle(
+                                                  color: isDark ? Colors.white : Colors.black87,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10.5,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          _buildGuestCell(m.guestMeals.toStringAsFixed(0), isDark),
+                                          _buildGuestCell('${mealRate.toStringAsFixed(2)} - Tk', isDark),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                                            child: Text(
+                                              '${guestCost.toStringAsFixed(2)} - Tk',
+                                              style: TextStyle(
+                                                color: const Color(0xFF0D9488),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                                    // Total row
+                                    TableRow(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                                      ),
+                                      children: [
+                                        Padding(
+                                            padding: const EdgeInsets.only(left: 12, right: 4, top: 10, bottom: 10),
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                'Total',
+                                                style: TextStyle(
+                                                  color: isDark ? Colors.white : Colors.black87,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10.5,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        _buildGuestCell(
+                                          membersWithGuests.fold<double>(0, (s, m) => s + m.guestMeals).toStringAsFixed(0),
+                                          isDark, isBold: true,
+                                        ),
+                                        _buildGuestCell('', isDark),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                                          child: Text(
+                                            '${membersWithGuests.fold<double>(0, (s, m) => s + (m.guestMeals * mealRate)).toStringAsFixed(2)} - Tk',
+                                            style: const TextStyle(
+                                              color: Color(0xFF0D9488),
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 11,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              }
+                              
+                              // Desktop table
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                                  child: DataTable(
+                                    headingRowColor: WidgetStateProperty.all(const Color(0xFF0D9488)),
+                                    dividerThickness: 1.5,
+                                    border: TableBorder.all(color: isDark ? Colors.white24 : Colors.black87, width: 1.5),
+                                    columns: const [
+                                      DataColumn(label: Padding(
+                                          padding: const EdgeInsets.only(left: 8),
+                                          child: Text('Member Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        )),
+                                      DataColumn(label: Text('Guest Meals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
+                                      DataColumn(label: Text('Meal Rate', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
+                                      DataColumn(label: Text('Guest Cost (Tk)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
+                                    ],
+                                    rows: [
+                                      ...membersWithGuests.map((m) {
+                                        final guestCost = m.guestMeals * mealRate;
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Padding(
+                                              padding: const EdgeInsets.only(left: 8),
+                                              child: Text(m.name, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500)),
+                                            )),
+                                            DataCell(Text(m.guestMeals.toStringAsFixed(0), style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                                            DataCell(Text('${mealRate.toStringAsFixed(2)} - Tk', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                                            DataCell(Text('${guestCost.toStringAsFixed(2)} - Tk', style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.bold))),
+                                          ],
+                                        );
+                                      }),
+                                      // Total row
+                                      DataRow(
+                                        color: WidgetStateProperty.all(const Color(0xFF0D9488).withValues(alpha: 0.1)),
+                                        cells: [
+                                          DataCell(Padding(
+                                            padding: const EdgeInsets.only(left: 8),
+                                            child: Text('TOTAL', style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w900)),
+                                          )),
+                                          DataCell(Text(
+                                            membersWithGuests.fold<double>(0, (s, m) => s + m.guestMeals).toStringAsFixed(0),
+                                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w700),
+                                          )),
+                                          DataCell(Text('-', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                                          DataCell(Text(
+                                            '${membersWithGuests.fold<double>(0, (s, m) => s + (m.guestMeals * mealRate)).toStringAsFixed(2)} - Tk',
+                                            style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w900),
+                                          )),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
                         ],
+                      ),
                       ),
                     ),
                   ],
@@ -1090,25 +1396,13 @@ class SummaryScreen extends StatelessWidget {
         );
       }
 
-      ByteData fontByteData;
-      try {
-        fontByteData = await rootBundle.load('packages/bangla_pdf_fixer/lib/fonts/Default/kalpurush.ttf');
-      } catch (_) {
-        fontByteData = await rootBundle.load('packages/bangla_pdf_fixer/fonts/Default/kalpurush.ttf');
-      }
-      final regularFont = pw.Font.ttf(fontByteData);
-      final boldFont = pw.Font.ttf(fontByteData);
+      await BanglaFontManager().initialize();
 
       bool hasBangla(String text) {
         return RegExp(r'[\u0980-\u09FF]').hasMatch(text);
       }
 
-      final pdf = pw.Document(
-        theme: pw.ThemeData.withFont(
-          base: regularFont,
-          bold: boldFont,
-        ),
-      );
+      final pdf = pw.Document();
       final currentCycle = provider.billingCycles.firstWhere(
         (c) => c.id == provider.activeCycleId,
         orElse: () => BillingCycle(id: provider.activeCycleId, name: 'Meal', startDate: DateTime.now(), isActive: true),
@@ -1128,12 +1422,11 @@ class SummaryScreen extends StatelessWidget {
       for (var m in provider.members) {
         double bal = provider.getMemberBalance(m);
         if (bal > 0) {
-          payables += bal;
+          receivables += bal; // Member paid extra, can receive back
         } else if (bal < 0) {
-          receivables += bal.abs();
+          payables += bal.abs(); // Member still owes
         }
       }
-      payables += provider.shopDue;
 
       pdf.addPage(
         pw.MultiPage(
@@ -1177,34 +1470,29 @@ class SummaryScreen extends StatelessWidget {
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        hasBangla(cycleName)
-                            ? pw.Text(
-                                'MESS MANAGER - ${cycleName.toUpperCase().fix}',
-                                style: pw.TextStyle(
+                        pw.Text(
+                          hasBangla(cycleName)
+                              ? 'Mess Manager - $cycleName'.fix
+                              : 'Mess Manager - $cycleName',
+                          style: hasBangla(cycleName)
+                              ? BanglaFontType.kalpurush.ts(
                                   fontSize: 10,
                                   fontWeight: pw.FontWeight.bold,
                                   color: PdfColors.teal100,
-                                  letterSpacing: 1.5,
-                                  font: regularFont,
-                                ),
-                              )
-                            : pw.Text(
-                                'MESS MANAGER - ${cycleName.toUpperCase()}',
-                                style: pw.TextStyle(
+                                )
+                              : pw.TextStyle(
                                   fontSize: 10,
                                   fontWeight: pw.FontWeight.bold,
                                   color: PdfColors.teal100,
-                                  letterSpacing: 1.5,
                                 ),
-                              ),
+                        ),
                         pw.SizedBox(height: 4),
                         pw.Text(
                           'MONTHLY REPORT SHEET',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                             fontSize: 20,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColors.white,
-                            letterSpacing: 0.5,
                           ),
                         ),
                         pw.SizedBox(height: 8),
@@ -1232,17 +1520,16 @@ class SummaryScreen extends StatelessWidget {
                         children: [
                           pw.Text(
                             'CYCLE DURATION',
-                            style: pw.TextStyle(
+                            style: const pw.TextStyle(
                               fontSize: 10,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
-                              letterSpacing: 0.5,
                             ),
                           ),
                           pw.SizedBox(height: 4),
                           pw.Text(
                             activeDateRangeStr,
-                            style: pw.TextStyle(
+                            style: const pw.TextStyle(
                               fontSize: 8,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.teal200,
@@ -1259,7 +1546,7 @@ class SummaryScreen extends StatelessWidget {
               // Section 1: Overview Title
               pw.Text(
                 'CYCLE OVERVIEW METRICS',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.teal800,
@@ -1285,7 +1572,7 @@ class SummaryScreen extends StatelessWidget {
               // Section 2: Detailed Sheet Title
               pw.Text(
                 'MONTHLY SUMMARY SHEET (BY MESS MANAGER)',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.teal800,
@@ -1317,7 +1604,7 @@ class SummaryScreen extends StatelessWidget {
                     ],
                   ),
                   ...sortedMembers.map((member) {
-                    double memBill = member.totalMeals * mealRate;
+                    double memBill = (member.totalMeals + member.guestMeals) * mealRate;
                     double memPaid = member.payments;
                     double memDue = memBill - memPaid;
                     
@@ -1325,35 +1612,35 @@ class SummaryScreen extends StatelessWidget {
                     if (memDue > 0) {
                       balanceWidget = pw.Container(
                         alignment: pw.Alignment.centerLeft,
-                        child: pw.Text(
-                          '${memDue.toStringAsFixed(0)} Tk (Pay)'.fix,
-                          style: pw.TextStyle(
-                            color: PdfColors.red800,
-                            fontWeight: pw.FontWeight.bold,
+                        child:                        pw.Text(
+                          '${memDue.toStringAsFixed(0)} Tk (Pay)',
+                          style: const pw.TextStyle(
                             fontSize: 8.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.red800,
                           ),
                         ),
                       );
                     } else if (memDue < 0) {
                       balanceWidget = pw.Container(
                         alignment: pw.Alignment.centerLeft,
-                        child: pw.Text(
-                          '${memDue.abs().toStringAsFixed(0)} Tk (Due)'.fix,
-                          style: pw.TextStyle(
-                            color: PdfColors.green800,
-                            fontWeight: pw.FontWeight.bold,
+                        child:                        pw.Text(
+                          '${memDue.abs().toStringAsFixed(0)} Tk (Due)',
+                          style: const pw.TextStyle(
                             fontSize: 8.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.green800,
                           ),
                         ),
                       );
                     } else {
                       balanceWidget = pw.Container(
                         alignment: pw.Alignment.centerLeft,
-                        child: pw.Text(
-                          'Settled'.fix,
+                        child:                        pw.Text(
+                          'Settled',
                           style: const pw.TextStyle(
-                            color: PdfColors.grey600,
                             fontSize: 8.5,
+                            color: PdfColors.grey600,
                           ),
                         ),
                       );
@@ -1367,10 +1654,7 @@ class SummaryScreen extends StatelessWidget {
                         color: rowBg,
                       ),
                       children: [
-                        _buildPdfCell(
-                          hasBangla(member.name) ? member.name.fix : member.name,
-                          font: hasBangla(member.name) ? regularFont : null,
-                        ),
+                        _buildPdfCell(member.name),
                         _buildPdfCell(member.totalMeals.toStringAsFixed(0), align: pw.Alignment.center),
                         _buildPdfCell(memBill.toStringAsFixed(0), align: pw.Alignment.center),
                         _buildPdfCell(memPaid.toStringAsFixed(0), align: pw.Alignment.center),
@@ -1378,6 +1662,81 @@ class SummaryScreen extends StatelessWidget {
                       ],
                     );
                   }).toList(),
+                ],
+              ),
+
+              // === Guest Meals Report ===
+              pw.SizedBox(height: 24),
+
+              pw.Text(
+                'GUEST MEALS REPORT',
+                style: const pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.teal800,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+
+              // Guest Meals Table — only show members with guestMeals > 0
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(3),
+                  1: pw.FlexColumnWidth(1.5),
+                  2: pw.FlexColumnWidth(2),
+                  3: pw.FlexColumnWidth(2.5),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.teal700,
+                    ),
+                    children: [
+                      _buildPdfHeaderCell('Member Name'),
+                      _buildPdfHeaderCell('Guest Meals', align: pw.Alignment.center),
+                      _buildPdfHeaderCell('Meal Rate (Tk)', align: pw.Alignment.center),
+                      _buildPdfHeaderCell('Guest Cost (Tk)', align: pw.Alignment.center),
+                    ],
+                  ),
+                  ...() {
+                    final guests = sortedMembers.where((m) => m.guestMeals > 0).toList()
+                      ..sort((a, b) => b.guestMeals.compareTo(a.guestMeals));
+                    
+                    if (guests.isEmpty) {
+                      return <pw.TableRow>[];
+                    }
+                    
+                    final rows = <pw.TableRow>[
+                      ...guests.map((member) {
+                        final guestCost = member.guestMeals * mealRate;
+                        return pw.TableRow(
+                          children: [
+                            _buildPdfCell(member.name),
+                            _buildPdfCell(member.guestMeals.toStringAsFixed(0), align: pw.Alignment.center),
+                            _buildPdfCell(mealRate.toStringAsFixed(2), align: pw.Alignment.center),
+                            _buildPdfCell(guestCost.toStringAsFixed(2), align: pw.Alignment.center),
+                          ],
+                        );
+                      }),
+                      // Total row
+                      pw.TableRow(
+                        children: [
+                          _buildPdfCell('TOTAL'),
+                          _buildPdfCell(
+                            guests.fold<double>(0, (s, m) => s + m.guestMeals).toStringAsFixed(0),
+                            align: pw.Alignment.center,
+                          ),
+                          _buildPdfCell('-', align: pw.Alignment.center),
+                          _buildPdfCell(
+                            guests.fold<double>(0, (s, m) => s + (m.guestMeals * mealRate)).toStringAsFixed(2),
+                            align: pw.Alignment.center,
+                          ),
+                        ],
+                      ),
+                    ];
+                    return rows;
+                  }(),
                 ],
               ),
             ];
@@ -1412,6 +1771,7 @@ class SummaryScreen extends StatelessWidget {
   }
 
   pw.Widget _buildPdfStatCard(String title, String value, PdfColor accentColor) {
+    final valHasBangla = RegExp(r'[\u0980-\u09FF]').hasMatch(value);
     return pw.Container(
       decoration: pw.BoxDecoration(
         color: PdfColors.white,
@@ -1439,8 +1799,8 @@ class SummaryScreen extends StatelessWidget {
                     ),
                     pw.SizedBox(width: 5),
                     pw.Text(
-                      title.toUpperCase().fix,
-                      style: pw.TextStyle(
+                      title.toUpperCase(),
+                      style: const pw.TextStyle(
                         fontSize: 7.5,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.grey700,
@@ -1450,12 +1810,18 @@ class SummaryScreen extends StatelessWidget {
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
-                  value.fix,
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: accentColor,
-                  ),
+                  valHasBangla ? value.fix : value,
+                  style: valHasBangla
+                      ? BanglaFontType.kalpurush.ts(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: accentColor,
+                        )
+                      : pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: accentColor,
+                        ),
                 ),
               ],
             ),
@@ -1490,33 +1856,76 @@ class SummaryScreen extends StatelessWidget {
   }
 
 
-  pw.Widget _buildPdfHeaderCell(String text, {pw.AlignmentGeometry align = pw.Alignment.centerLeft, pw.Font? font}) {
-    return pw.Container(
-      alignment: align,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: pw.Text(
-        text.fix,
-        style: pw.TextStyle(
-          color: PdfColors.white,
-          fontWeight: pw.FontWeight.bold,
-          fontSize: 9,
-          font: font,
+  // ── Guest Meals Table Helpers ──
+  Widget _buildGuestHdrCell(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 10,
+          ),
         ),
       ),
     );
   }
 
-  pw.Widget _buildPdfCell(String text, {pw.AlignmentGeometry align = pw.Alignment.centerLeft, pw.Font? font}) {
+  Widget _buildGuestCell(String text, bool isDark, {bool isBold = false, TextAlign align = TextAlign.center}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+          fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+          fontSize: 10.5,
+        ),
+        textAlign: align,
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfHeaderCell(String text, {pw.AlignmentGeometry align = pw.Alignment.centerLeft}) {
+    final hasBangla = RegExp(r'[\u0980-\u09FF]').hasMatch(text);
+    return pw.Container(
+      alignment: align,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: pw.Text(
+        hasBangla ? text.fix : text,
+        style: hasBangla
+            ? BanglaFontType.kalpurush.ts(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              )
+            : const pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfCell(String text, {pw.AlignmentGeometry align = pw.Alignment.centerLeft}) {
+    final hasBangla = RegExp(r'[\u0980-\u09FF]').hasMatch(text);
     return pw.Container(
       alignment: align,
       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       child: pw.Text(
-        text.fix,
-        style: pw.TextStyle(
-          color: PdfColors.grey900,
-          fontSize: 8.5,
-          font: font,
-        ),
+        hasBangla ? text.fix : text,
+        style: hasBangla
+            ? BanglaFontType.kalpurush.ts(
+                fontSize: 8.5,
+                color: PdfColors.grey900,
+              )
+            : const pw.TextStyle(
+                fontSize: 8.5,
+                color: PdfColors.grey900,
+              ),
       ),
     );
   }

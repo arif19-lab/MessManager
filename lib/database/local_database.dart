@@ -19,10 +19,21 @@ class LocalDatabase {
     return await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await db.execute('ALTER TABLE members ADD COLUMN cycleId TEXT NOT NULL DEFAULT ""');
+          }
+          if (oldVersion < 3) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS guest_meals (
+                id TEXT PRIMARY KEY,
+                memberId TEXT NOT NULL,
+                dateString TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                cycleId TEXT NOT NULL DEFAULT ''
+              )
+            ''');
           }
         },
         onCreate: (db, version) async {
@@ -88,6 +99,15 @@ class LocalDatabase {
             memberId TEXT NOT NULL,
             amount REAL NOT NULL,
             date TEXT NOT NULL,
+            cycleId TEXT NOT NULL DEFAULT ''
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS guest_meals (
+            id TEXT PRIMARY KEY,
+            memberId TEXT NOT NULL,
+            dateString TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
             cycleId TEXT NOT NULL DEFAULT ''
           )
         ''');
@@ -372,6 +392,49 @@ class LocalDatabase {
     await db.delete('fried_fine_items', where: 'id = ?', whereArgs: [id]);
   }
 
+  // ---- Guest Meals ----
+  static Future<List<GuestMeal>> getGuestMeals() async {
+    final db = await instance;
+    final rows = await db.query('guest_meals');
+    return rows.map((r) => GuestMeal.fromMap({
+      'id': r['id'],
+      'memberId': r['memberId'],
+      'dateString': r['dateString'],
+      'count': r['count'],
+      'cycleId': r['cycleId'],
+    })).toList();
+  }
+
+  static Future<void> saveGuestMeals(List<GuestMeal> items) async {
+    final db = await instance;
+    await db.delete('guest_meals');
+    for (final g in items) {
+      await db.insert('guest_meals', {
+        'id': g.id,
+        'memberId': g.memberId,
+        'dateString': g.dateString,
+        'count': g.count,
+        'cycleId': g.cycleId,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+
+  static Future<void> insertGuestMeal(GuestMeal item) async {
+    final db = await instance;
+    await db.insert('guest_meals', {
+      'id': item.id,
+      'memberId': item.memberId,
+      'dateString': item.dateString,
+      'count': item.count,
+      'cycleId': item.cycleId,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  static Future<void> deleteGuestMeal(String id) async {
+    final db = await instance;
+    await db.delete('guest_meals', where: 'id = ?', whereArgs: [id]);
+  }
+
   // ---- Daily Meals ----
   static Future<List<DailyMeal>> getDailyMeals() async {
     final db = await instance;
@@ -419,6 +482,7 @@ class LocalDatabase {
     required List<Payment> payments,
     required List<ShopDueItem> shopDueItems,
     required List<FriedFineItem> friedFineItems,
+    List<GuestMeal>? guestMeals,
     required List<DailyMeal> dailyMeals,
     String? activeCycleId,
   }) async {
@@ -472,6 +536,19 @@ class LocalDatabase {
         });
       }
 
+      await txn.delete('guest_meals');
+      if (guestMeals != null) {
+        for (final g in guestMeals) {
+          await txn.insert('guest_meals', {
+            'id': g.id,
+            'memberId': g.memberId,
+            'dateString': g.dateString,
+            'count': g.count,
+            'cycleId': g.cycleId,
+          });
+        }
+      }
+
       await txn.delete('daily_meals');
       for (final dm in dailyMeals) {
         await txn.insert('daily_meals', {
@@ -509,6 +586,7 @@ class LocalDatabase {
       await txn.delete('payments');
       await txn.delete('shop_due_items');
       await txn.delete('fried_fine_items');
+      await txn.delete('guest_meals');
       await txn.delete('daily_meals');
     });
   }

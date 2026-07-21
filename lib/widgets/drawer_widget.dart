@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import '../l10n/bangla_localizations.dart';
 import '../providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,7 @@ class DrawerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bn = BanglaLocalizations.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     bool isDark = themeProvider.isDarkMode;
     double screenWidth = MediaQuery.of(context).size.width;
@@ -47,7 +49,7 @@ class DrawerWidget extends StatelessWidget {
           ),
           borderRadius: const BorderRadius.all(Radius.circular(48)),
           border: Border.all(
-            color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.06),
+            color: isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.25),
             width: 1.5,
           ),
           boxShadow: [
@@ -66,7 +68,7 @@ class DrawerWidget extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _buildSectionHeader('Menu'),
+                  _buildSectionHeader(bn.drawerMenu),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -84,7 +86,7 @@ class DrawerWidget extends StatelessWidget {
                            index: 3,
                            icon: Icons.shopping_cart_outlined,
                            imageAssetPath: 'assets/icons/expenses.png',
-                           title: 'Expenses',
+                           title: bn.drawerExpenses,
                            context: context,
                            activeColor: const Color(0xFFF59E0B),
                          ),
@@ -93,7 +95,7 @@ class DrawerWidget extends StatelessWidget {
                            index: 4,
                            icon: Icons.phone_android_outlined,
                            imageAssetPath: 'assets/icons/payments.png',
-                           title: 'Payments',
+                           title: bn.drawerPayments,
                            context: context,
                            activeColor: const Color(0xFF3B82F6),
                          ),
@@ -101,7 +103,7 @@ class DrawerWidget extends StatelessWidget {
                          _buildDrawerItem(
                            index: 5,
                            icon: Icons.gavel_rounded,
-                           title: 'Feast & Fines',
+                           title: bn.drawerFeastFines,
                            context: context,
                            activeColor: const Color(0xFFEF4444),
                          ),
@@ -111,7 +113,7 @@ class DrawerWidget extends StatelessWidget {
                   
                   const SizedBox(height: 24),
                   
-                  _buildSectionHeader('Options'),
+                  _buildSectionHeader(bn.drawerOptions),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -129,7 +131,7 @@ class DrawerWidget extends StatelessWidget {
                            index: 6,
                            icon: Icons.description_outlined,
                            imageAssetPath: 'assets/icons/report.png',
-                           title: 'Reports',
+                           title: bn.drawerReports,
                            context: context,
                            activeColor: const Color(0xFF0D9488),
                          ),
@@ -138,7 +140,7 @@ class DrawerWidget extends StatelessWidget {
                            index: 7,
                            icon: Icons.notifications_none_outlined,
                            imageAssetPath: 'assets/icons/notification.png',
-                           title: 'Notifications',
+                           title: bn.drawerNotifications,
                            context: context,
                            activeColor: const Color(0xFF8B5CF6),
                          ),
@@ -147,7 +149,7 @@ class DrawerWidget extends StatelessWidget {
                            index: 9,
                            icon: Icons.palette_outlined,
                            imageAssetPath: 'assets/icons/customize-home.png',
-                           title: 'Customize Home',
+                           title: bn.drawerCustomizeHome,
                            context: context,
                            activeColor: const Color(0xFFEC4899),
                          ),
@@ -161,7 +163,7 @@ class DrawerWidget extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Text(
-                'v1.0.0',
+                bn.versionLabel,
                 style: TextStyle(
                   color: isDark ? Colors.grey[500] : Colors.grey[400],
                   fontSize: 12,
@@ -277,7 +279,7 @@ class DrawerWidget extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Mess Manager',
+                BanglaLocalizations.of(context).appTitle,
                 style: TextStyle(
                   color: isDark ? Colors.white : Colors.black87,
                   fontSize: 18,

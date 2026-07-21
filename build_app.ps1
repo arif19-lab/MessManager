@@ -4,7 +4,8 @@
 
 $ErrorActionPreference = "Continue"
 $buildStartTime = Get-Date
-$logFile = "build_log_$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').txt"
+$dateSuffix = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$logFile = "build_log_$dateSuffix.txt"
 $buildResults = @{}
 
 function Write-Log {
@@ -24,16 +25,16 @@ function Get-FileSize {
     return "N/A"
 }
 
-# ─── HEADER ───────────────────────────────────
+# === HEADER ===================================
 Clear-Host
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "  ║       MESS MANAGER BUILD SYSTEM      ║" -ForegroundColor Cyan
-Write-Host "  ║        Professional Release Tool     ║" -ForegroundColor Cyan
-Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
+Write-Host "  |       MESS MANAGER BUILD SYSTEM      |" -ForegroundColor Cyan
+Write-Host "  |        Professional Release Tool     |" -ForegroundColor Cyan
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
 Write-Host ""
 
-# ─── VERSION UPDATE ───────────────────────────
+# === VERSION UPDATE ===========================
 $pubspecPath = "pubspec.yaml"
 $content = Get-Content $pubspecPath -Raw
 
@@ -44,7 +45,7 @@ if ($content -match 'version:\s*(\d+\.\d+\.\d+)\+(\d+)') {
     $newVersionLine = "version: $versionName+$newVersionCode"
     $content = $content -replace 'version:\s*\d+\.\d+\.\d+\+\d+', $newVersionLine
     Set-Content $pubspecPath $content
-    Write-Log "Version: $versionName+$versionCode  →  $versionName+$newVersionCode" "Green"
+    Write-Log "Version: $versionName+$versionCode  ->  $versionName+$newVersionCode" "Green"
 } else {
     Write-Log "ERROR: Could not find version in pubspec.yaml" "Red"
     exit 1
@@ -52,7 +53,7 @@ if ($content -match 'version:\s*(\d+\.\d+\.\d+)\+(\d+)') {
 
 Write-Host ""
 
-# ─── PLATFORM SELECTION ───────────────────────
+# === PLATFORM SELECTION =======================
 Write-Host "  Select platforms to build:" -ForegroundColor Yellow
 Write-Host "  [1] All platforms (Android + Web + Windows)" -ForegroundColor White
 Write-Host "  [2] Android only" -ForegroundColor White
@@ -80,13 +81,14 @@ switch ($platformChoice) {
 
 Write-Host ""
 
-# ─── CONFIRMATION ─────────────────────────────
+# === CONFIRMATION =============================
 $platforms = @()
 if ($buildAndroid) { $platforms += "Android" }
 if ($buildWeb) { $platforms += "Web" }
 if ($buildWindows) { $platforms += "Windows" }
 
-Write-Host "  Ready to build: $($platforms -join ' + ')" -ForegroundColor Cyan
+$platformStr = $platforms -join " + "
+Write-Host "  Ready to build: $platformStr" -ForegroundColor Cyan
 Write-Host "  Version: $versionName+$newVersionCode" -ForegroundColor Cyan
 Write-Host ""
 $confirm = Read-Host "  Start build? (Y/N)"
@@ -96,23 +98,24 @@ if ($confirm -ne "Y" -and $confirm -ne "y") {
 }
 
 Write-Host ""
-Write-Log "Build started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" "Cyan"
+$startTimeStr = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Log "Build started at $startTimeStr" "Cyan"
 Write-Host ""
 
-# ─── SETUP ────────────────────────────────────
+# === SETUP ====================================
 $env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
 $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot"
 
-# ─── CLEAN ────────────────────────────────────
+# === CLEAN ====================================
 Write-Log "Cleaning project..." "Yellow"
 flutter clean | Out-Null
 flutter pub get | Out-Null
 Write-Log "Clean complete." "Green"
 Write-Host ""
 
-# ─── ANDROID BUILD ────────────────────────────
+# === ANDROID BUILD ============================
 if ($buildAndroid) {
-    Write-Log "━━━ Building Android APK ━━━" "Cyan"
+    Write-Log "=== Building Android APK ===" "Cyan"
     $start = Get-Date
     flutter build apk --release
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds, 1)
@@ -129,9 +132,9 @@ if ($buildAndroid) {
     Write-Host ""
 }
 
-# ─── WEB BUILD ────────────────────────────────
+# === WEB BUILD ================================
 if ($buildWeb) {
-    Write-Log "━━━ Building Web App ━━━" "Cyan"
+    Write-Log "=== Building Web App ===" "Cyan"
     $start = Get-Date
     flutter build web
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds, 1)
@@ -161,9 +164,9 @@ if ($buildWeb) {
     Write-Host ""
 }
 
-# ─── WINDOWS BUILD ────────────────────────────
+# === WINDOWS BUILD ============================
 if ($buildWindows) {
-    Write-Log "━━━ Building Windows App ━━━" "Cyan"
+    Write-Log "=== Building Windows App ===" "Cyan"
     $start = Get-Date
     flutter build windows
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds, 1)
@@ -180,34 +183,35 @@ if ($buildWindows) {
     Write-Host ""
 }
 
-# ─── SUMMARY ──────────────────────────────────
+# === SUMMARY ==================================
 $totalDuration = [math]::Round(((Get-Date) - $buildStartTime).TotalMinutes, 1)
 
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "  ║           BUILD SUMMARY              ║" -ForegroundColor Cyan
-Write-Host "  ╠══════════════════════════════════════╣" -ForegroundColor Cyan
-Write-Host "  ║  Version : $versionName+$newVersionCode" -ForegroundColor White
-Write-Host "  ║  Duration: $totalDuration minutes" -ForegroundColor White
-Write-Host "  ╠══════════════════════════════════════╣" -ForegroundColor Cyan
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
+Write-Host "  |           BUILD SUMMARY              |" -ForegroundColor Cyan
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
+Write-Host "  |  Version : $versionName+$newVersionCode" -ForegroundColor White
+Write-Host "  |  Duration: $totalDuration minutes" -ForegroundColor White
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
 
 foreach ($key in $buildResults.Keys) {
     $result = $buildResults[$key]
     $color = if ($result -like "✅*") { "Green" } else { "Red" }
-    Write-Host "  ║  $key : $result" -ForegroundColor $color
+    Write-Host "  |  $key : $result" -ForegroundColor $color
 }
 
-Write-Host "  ╠══════════════════════════════════════╣" -ForegroundColor Cyan
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
 
 if ($buildAndroid -and (Test-Path "build\app\outputs\flutter-apk\app-release.apk")) {
-    Write-Host "  ║  APK: build\app\outputs\flutter-apk\" -ForegroundColor Yellow
+    Write-Host "  |  APK: build\app\outputs\flutter-apk\" -ForegroundColor Yellow
 }
 if ($buildWindows -and (Test-Path "build\windows\x64\runner\Release\")) {
-    Write-Host "  ║  EXE: build\windows\x64\runner\Release\" -ForegroundColor Yellow
+    Write-Host "  |  EXE: build\windows\x64\runner\Release\" -ForegroundColor Yellow
 }
 
-Write-Host "  ║  LOG: $logFile" -ForegroundColor Gray
-Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "  |  LOG: $logFile" -ForegroundColor Gray
+Write-Host "  +--------------------------------------+" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Log "Build finished at $(Get-Date -Format 'HH:mm:ss') | Total: $totalDuration min" "Cyan"
+$endTimeStr = Get-Date -Format "HH:mm:ss"
+Write-Log "Build finished at $endTimeStr | Total: $totalDuration min" "Cyan"

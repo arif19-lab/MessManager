@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/theme_provider.dart';
-import '../providers/mess_provider.dart';
-import '../widgets/profile_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ClockWidget extends StatefulWidget {
   final bool isDesktop;
@@ -34,17 +35,54 @@ class _ClockWidgetState extends State<ClockWidget> {
         });
       }
     });
+    _loadCachedLocation();
     _fetchLocation();
   }
 
+  void _loadCachedLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_location');
+      if (cached != null && mounted) {
+        setState(() {
+          _location = cached;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _updateLocation(String newLocation) async {
+    if (mounted) {
+      setState(() {
+        _location = newLocation;
+      });
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_location', newLocation);
+    } catch (_) {}
+  }
+
   Future<void> _fetchLocation() async {
-    // 1. Try to get physical GPS location first
-    await _fetchGPSLocation();
-    if (_location != "DHAKA - BANGLADESH") {
-      return; // GPS successfully got the actual local city!
+    // Immediately show visual loading feedback if we don't have a cached location yet
+    if (_location == "DHAKA - BANGLADESH" && mounted) {
+      setState(() {
+        _location = "DETECTING LOCATION...";
+      });
     }
 
-    // 2. Fallback to free geocoding HTTPS IP APIs
+    // 1. Try to get physical GPS / Browser / OS location (Supported on Mobile, Web, and Windows!)
+    try {
+      await _fetchGPSLocation().timeout(kIsWeb ? const Duration(seconds: 15) : const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint("GPS location timed out or failed: $e");
+    }
+
+    if (_location != "DHAKA - BANGLADESH" && _location != "DETECTING LOCATION...") {
+      return; // GPS / Browser successfully got the actual local city!
+    }
+
+    // 2. Fallback to free geocoding HTTPS IP APIs (Very reliable on Desktop / Windows)
     final List<String> apis = [
       'https://freeipapi.com/api/json',
       'https://ipwho.is/',
@@ -74,31 +112,44 @@ class _ClockWidgetState extends State<ClockWidget> {
 
           if (city != null && city.toString().isNotEmpty && 
               country != null && country.toString().isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _location = "${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}";
-              });
-            }
-            return; // Successfully got location, exit loop
+            _updateLocation("${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}");
+            return; // Successfully got location, exit
           }
         }
       } catch (e) {
-        // Log error silently and try the next API
         debugPrint("Location API fetch failed for $url: $e");
       }
     }
 
-    // 3. Fallback: Use timezone database if all APIs fail
+    // 3. Fallback: Use timezone database if all network APIs fail
     try {
       final tzInfo = await FlutterTimezone.getLocalTimezone();
-      final String tz = tzInfo.identifier;
+      final String tz = tzInfo.identifier; // e.g. "Asia/Dhaka" or "Europe/London"
       final parts = tz.split('/');
       if (parts.length > 1 && mounted) {
-        setState(() {
-          _location = "${parts[1].replaceAll('_', ' ').toUpperCase()} - BANGLADESH";
-        });
+        final String city = parts[1].replaceAll('_', ' ').toUpperCase();
+        String countrySuffix = "BANGLADESH"; // default fallback
+        
+        if (tz.toLowerCase().contains("dhaka")) {
+          countrySuffix = "BANGLADESH";
+        } else if (parts[0].toLowerCase() == "europe") {
+          countrySuffix = "EUROPE";
+        } else if (parts[0].toLowerCase() == "america") {
+          countrySuffix = "USA";
+        } else {
+          countrySuffix = parts[0].toUpperCase();
+        }
+
+        _updateLocation("$city - $countrySuffix");
       }
     } catch (_) {}
+
+    // Fallback if all methods fail and it's still stuck on "DETECTING LOCATION..."
+    if (_location == "DETECTING LOCATION..." && mounted) {
+      setState(() {
+        _location = "DHAKA - BANGLADESH";
+      });
+    }
   }
 
   Future<void> _fetchGPSLocation() async {
@@ -114,16 +165,17 @@ class _ClockWidgetState extends State<ClockWidget> {
       
       if (permission == LocationPermission.deniedForever) return;
 
-      // Try getting the last known position first (fast, doesn't time out)
-      Position? position = await Geolocator.getLastKnownPosition();
-      
-      // If no last known position, request current position
+      Position? position;
+      if (!kIsWeb) {
+        try {
+          position = await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+      }
       position ??= await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.low,
-        timeLimit: const Duration(seconds: 5),
+        timeLimit: kIsWeb ? const Duration(seconds: 10) : const Duration(seconds: 5),
       );
 
-      // Query BigDataCloud reverse geocoding client (extremely fast, no keys needed)
       final String url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.latitude}&longitude=${position.longitude}&localityLanguage=en';
       
       try {
@@ -134,23 +186,18 @@ class _ClockWidgetState extends State<ClockWidget> {
           String? country = data['countryName'];
           if (city != null && city.toString().isNotEmpty && 
               country != null && country.toString().isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _location = "${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}";
-              });
-            }
-            return; // Successfully resolved city via BigDataCloud!
+            _updateLocation("${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}");
+            return;
           }
         }
       } catch (e) {
         debugPrint("BigDataCloud Geocoding failed: $e");
       }
 
-      // Fallback: Query OpenStreetMap Nominatim for reverse geocoding
       final String fallbackUrl = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}&zoom=10&addressdetails=1';
       final response = await http.get(
         Uri.parse(fallbackUrl),
-        headers: {
+        headers: kIsWeb ? {} : {
           'User-Agent': 'MessManagerApp/1.0 (contact@messmanager.com)',
         },
       ).timeout(const Duration(seconds: 3));
@@ -162,11 +209,7 @@ class _ClockWidgetState extends State<ClockWidget> {
           String? city = address['city'] ?? address['town'] ?? address['village'] ?? address['suburb'] ?? address['county'] ?? address['state'];
           String? country = address['country'];
           if (city != null && country != null) {
-            if (mounted) {
-              setState(() {
-                _location = "${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}";
-              });
-            }
+            _updateLocation("${city.toString().toUpperCase()} - ${country.toString().toUpperCase()}");
           }
         }
       }
@@ -226,8 +269,8 @@ class _ClockWidgetState extends State<ClockWidget> {
   }
 
   Widget _buildMobileWidget(bool isDark) {
-    // Outer card styling - Solid Black in dark mode, Solid White in light mode
-    final Color outerBgColor = isDark ? const Color(0xFF111111) : Colors.white;
+    // Glassy main card (matching Language card in Settings)
+    final Color highlightColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB);
     final Color headerTextColor = isDark ? Colors.white : const Color(0xFF111111);
     
     // Grey inner card background (matching the image)
@@ -245,25 +288,33 @@ class _ClockWidgetState extends State<ClockWidget> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: outerBgColor,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: isDark 
-                ? Colors.white.withValues(alpha: 0.12) 
-                : Colors.black.withValues(alpha: 0.08),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(28),
         ),
-      padding: const EdgeInsets.all(10), // Middle-ground bezel padding
-      child: IntrinsicHeight(
-        child: Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10), // Middle-ground bezel padding
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [Colors.white.withValues(alpha: 0.15), Colors.white.withValues(alpha: 0.05)]
+                      : [Colors.white, const Color(0xFFF1F5F9)],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : Colors.black.withValues(alpha: 0.08),
+                  width: 1.5,
+                ),
+              ),
+              child: IntrinsicHeight(
+                child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Left Card (Time / Weather Style)
@@ -396,7 +447,7 @@ class _ClockWidgetState extends State<ClockWidget> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildCalendarStrip(contentTextColor, outerBgColor),
+                          _buildCalendarStrip(contentTextColor, highlightColor),
                           const Spacer(),
                           const SizedBox(height: 6),
                           Align(
@@ -421,8 +472,11 @@ class _ClockWidgetState extends State<ClockWidget> {
           ],
         ),
       ),
-    ),
-  );
+     ),
+   ),
+ ),
+),
+);
 }
 
   Widget _buildCalendarStrip(Color textColor, Color highlightColor) {

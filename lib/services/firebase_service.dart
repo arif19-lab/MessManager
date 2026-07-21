@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/mess_data.dart';
 import 'google_sign_in_desktop.dart';
 
@@ -23,7 +24,11 @@ class FirebaseService {
       email: email,
       password: password,
     );
-    await saveUserToFirestore(result.user!);
+    try {
+      await saveUserToFirestore(result.user!).timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('Failed to save user to Firestore during sign-in: $e');
+    }
     return result.user;
   }
 
@@ -32,8 +37,14 @@ class FirebaseService {
       email: email,
       password: password,
     );
-    await result.user!.updateDisplayName(name);
-    await saveUserToFirestore(result.user!);
+    try {
+      await result.user!.updateDisplayName(name);
+    } catch (_) {}
+    try {
+      await saveUserToFirestore(result.user!).timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('Failed to save user to Firestore during sign-up: $e');
+    }
     return result.user;
   }
 
@@ -138,6 +149,24 @@ class FirebaseService {
         .toList();
   }
 
+  Stream<QuerySnapshot> get guestMealsStream =>
+      _dataCollection('guest_meals').snapshots();
+
+  Future<void> saveGuestMeal(GuestMeal item) async {
+    await _dataCollection('guest_meals').doc(item.id).set(item.toMap());
+  }
+
+  Future<void> deleteGuestMealDoc(String id) async {
+    await _dataCollection('guest_meals').doc(id).delete();
+  }
+
+  Future<List<GuestMeal>> getGuestMeals() async {
+    final snapshot = await _dataCollection('guest_meals').get();
+    return snapshot.docs
+        .map((doc) => GuestMeal.fromMap(doc.data() as Map<String, dynamic>))
+        .toList();
+  }
+
   Stream<QuerySnapshot> get friedFineItemsStream =>
       _dataCollection('fried_fine').snapshots();
 
@@ -199,6 +228,7 @@ class FirebaseService {
     List<ShopDueItem>? shopDueItems,
     List<FriedFineItem>? friedFineItems,
     List<DailyMeal>? dailyMeals,
+    List<GuestMeal>? guestMeals,
     List<BillingCycle>? cycles,
   }) async {
     final batch = _firestore.batch();
@@ -214,6 +244,7 @@ class FirebaseService {
     shopDueItems?.forEach((s) => setData('shop_due', s.id, s.toMap()));
     friedFineItems?.forEach((f) => setData('fried_fine', f.id, f.toMap()));
     dailyMeals?.forEach((d) => setData('daily_meals', d.id, d.toMap()));
+    guestMeals?.forEach((g) => setData('guest_meals', g.id, g.toMap()));
     cycles?.forEach((c) => setData('cycles', c.id, c.toMap()));
 
     await batch.commit();

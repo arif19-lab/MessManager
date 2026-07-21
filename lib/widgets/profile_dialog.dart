@@ -279,18 +279,11 @@ class _ProfileDialogState extends State<ProfileDialog> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
     return InkWell(
-      onTap: () async {
-        final result = await GoogleSignInDesktop.signIn(context: context);
-        if (result != null) {
-          await AuthModeService.setGoogle();
-          if (mounted) {
-            await context.read<MessProvider>().initialize();
-            if (mounted) {
-              setState(() {});
-              await _loadAuthMode();
-            }
-          }
-        }
+      onTap: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -303,7 +296,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(width: 16, height: 16, child: Image.asset('assets/icons/google.png', errorBuilder: (context, error, stackTrace) => Icon(Icons.login_rounded, size: 16, color: const Color(0xFF0F766E)))),
+            const Icon(Icons.login_rounded, size: 16, color: Color(0xFF0F766E)),
             const SizedBox(width: 8),
             Flexible(child: Text('LOGIN', overflow: TextOverflow.ellipsis, style: GoogleFonts.pressStart2p(color: const Color(0xFF0F766E), fontSize: 8))),
           ],

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/mess_provider.dart';
 import '../models/mess_data.dart';
 import '../widgets/glass_dialog.dart';
 import 'package:mess_manager/widgets/glassy_notification.dart';
+import '../l10n/bangla_localizations.dart';
+import 'guest_meals_screen.dart';
 
 class FriedFineScreen extends StatelessWidget {
   const FriedFineScreen({super.key});
@@ -14,6 +17,11 @@ class FriedFineScreen extends StatelessWidget {
     final provider = Provider.of<MessProvider>(context);
     final cycleItems = provider.friedFineItems;
     final allMembers = provider.allMembers;
+    
+    // Guest meals data for selected date (today by default)
+    final todayString = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final guestMealsToday = provider.getGuestMealsForDate(todayString);
+    final cycleGuestCount = provider.members.fold<double>(0, (s, m) => s + m.guestMeals);
     
     final totalFines = provider.totalFriedFine;
     // Build card list from items: include every member who has items in current cycle,
@@ -36,9 +44,22 @@ class FriedFineScreen extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     bool isDark = themeProvider.isDarkMode;
     return Scaffold(
-      backgroundColor: Colors.transparent, // Let System Theme shine through
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          BanglaLocalizations.of(context).feastAndFines,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
-        bottom: false, // Let the list scroll under the floating navbar
+        bottom: false,
         child: Stack(
           children: [
             Padding(
@@ -51,93 +72,67 @@ class FriedFineScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Top Badges Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Fried+Fine badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: themeProvider.resolveColor(
-                      light: Colors.white,
-                      dark: const Color(0xFF0A0A0A),
-                                    ),                     border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey.withValues(alpha: 0.3), width: 1.5),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          'Feast & Fines',
-                          style: TextStyle(
-                            color: isDark ? Colors.white : const Color(0xFF1E293B),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      // Right side desktop button + total pill
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                  // 1. Top Badges (responsive layout)
+                  if (isDesktop)                        // Desktop: horizontal scrollable row (title now in AppBar)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          if (isDesktop) ...[
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: InkWell(
-                                onTap: () {
-                                  _showAddFriedFineDialog(context, provider);
-                                },
-                                borderRadius: BorderRadius.circular(30),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Add Fine',
-                                        style: TextStyle(
-                                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
+                          _buildGuestButton(context),
+                          const SizedBox(width: 12),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                             decoration: BoxDecoration(
-                              color: themeProvider.resolveColor(
-                      light: Colors.white,
-                      dark: const Color(0xFF0A0A0A),
-                                    ),                     border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey.withValues(alpha: 0.3), width: 1.5),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                width: 1.5,
+                              ),
                             ),
-                            child: Text(
-                              'Total = ${totalFines.toInt()}',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : const Color(0xFF1E293B),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                            child: InkWell(
+                              onTap: () {
+                                _showAddFriedFineDialog(context, provider);
+                              },
+                              borderRadius: BorderRadius.circular(30),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      BanglaLocalizations.of(context).addFine,
+                                      style: TextStyle(
+                                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          _buildTotalPill(context, themeProvider, isDark, totalFines),
                         ],
                       ),
-                    ],
-                  ),
+                    )
+                  else
+                    // Mobile: Guest + Total below the AppBar
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildGuestButton(context),
+                          const SizedBox(width: 12),
+                          _buildTotalPill(context, themeProvider, isDark, totalFines),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 20),
 
                   // 2. Active member cards list
@@ -150,7 +145,7 @@ class FriedFineScreen extends StatelessWidget {
                                 Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey[400]),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'No records found',
+                                  BanglaLocalizations.of(context).noRecordsFound,
                                   style: TextStyle(
                                     color: Colors.grey[500],
                                     fontSize: 14,
@@ -159,7 +154,7 @@ class FriedFineScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Click "Add Fine" to record a fine',
+                                  BanglaLocalizations.of(context).clickAddFine,
                                   style: TextStyle(
                                     color: Colors.grey[400],
                                     fontSize: 11,
@@ -184,7 +179,7 @@ class FriedFineScreen extends StatelessWidget {
               ),
             ),
 
-            // 3. Black Bottom FAB: "Add Meal Amount"
+            // 3. Black Bottom FAB: "Add Fine"
             if (!isDesktop)
               Positioned(
                 bottom: 120 + bottomPadding,
@@ -220,9 +215,8 @@ class FriedFineScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.add_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Add Fine',
+                            const SizedBox(width: 8),                              Text(
+                                BanglaLocalizations.of(context).addFine,
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                 fontWeight: FontWeight.bold,
@@ -237,6 +231,77 @@ class FriedFineScreen extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestButton(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+          width: 1.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const GuestMealsScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(30),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.person_add_alt_1,
+                size: 18,
+                color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                BanglaLocalizations.of(context).guest,
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTotalPill(BuildContext context, ThemeProvider themeProvider, bool isDark, double totalFines) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: themeProvider.resolveColor(
+          light: Colors.white,
+          dark: const Color(0xFF0A0A0A),
+        ),
+        border: Border.all(
+          color: isDark ? Colors.grey[700]! : Colors.grey.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Total = ${totalFines.toInt()}',
+        style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF1E293B),
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -352,8 +417,8 @@ class FriedFineScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Amounts',
+              Text(
+                BanglaLocalizations.of(context).amounts,
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 12,
@@ -417,6 +482,200 @@ class FriedFineScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAddGuestDialog(BuildContext context, MessProvider provider) {
+    final String dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final allActiveMembers = provider.members.where((m) => m.isActive).toList();
+    
+    Map<String, int> tempGuestCounts = {};
+    for (var m in allActiveMembers) {
+      tempGuestCounts[m.id] = provider.getGuestMealCountForMember(m.id, dateString);
+    }
+
+    showGlassDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final themeProvider = Provider.of<ThemeProvider>(context);
+            bool isDark = themeProvider.isDarkMode;
+            return AlertDialog(
+              backgroundColor: themeProvider.resolveColor(
+                light: Colors.white,
+                dark: const Color(0xFF0A0A0A),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Guest Meal Add',
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'How many guests did each member bring today?',
+                    style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: allActiveMembers.length,
+                  itemBuilder: (context, index) {
+                    final member = allActiveMembers[index];
+                    final count = tempGuestCounts[member.id] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: count > 0 
+                              ? const Color(0xFF0D9488).withValues(alpha: 0.5) 
+                              : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.2)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: isDark ? const Color(0xFF065F46).withValues(alpha: 0.7) : const Color(0xFF86EFAC).withValues(alpha: 0.4),
+                              child: Text(
+                                member.name.substring(0, 1).toUpperCase(),
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : const Color(0xFF065F46),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                member.name,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    if ((tempGuestCounts[member.id] ?? 0) > 0) {
+                                      setDialogState(() {
+                                        tempGuestCounts[member.id] = (tempGuestCounts[member.id] ?? 0) - 1;
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: (tempGuestCounts[member.id] ?? 0) > 0
+                                        ? const Color(0xFFEF4444).withValues(alpha: 0.15)
+                                        : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: (tempGuestCounts[member.id] ?? 0) > 0
+                                          ? const Color(0xFFEF4444).withValues(alpha: 0.5)
+                                          : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.3)),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      color: (tempGuestCounts[member.id] ?? 0) > 0
+                                        ? const Color(0xFFEF4444)
+                                        : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  width: 24,
+                                  child: Text(
+                                    '${tempGuestCounts[member.id] ?? 0}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                      color: (tempGuestCounts[member.id] ?? 0) > 0
+                                        ? const Color(0xFF0D9488)
+                                        : (isDark ? Colors.grey[400] : const Color(0xFF475569)),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                  onTap: () {
+                                    if ((tempGuestCounts[member.id] ?? 0) < 9) {
+                                      setDialogState(() {
+                                        tempGuestCounts[member.id] = (tempGuestCounts[member.id] ?? 0) + 1;
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      color: Color(0xFF10B981),
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(BanglaLocalizations.of(context).cancel, style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    for (var entry in tempGuestCounts.entries) {
+                      provider.setGuestMealForMember(entry.key, dateString, entry.value);
+                    }
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D9488),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),                  ),                          child: Text(BanglaLocalizations.of(context).save, style: TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -516,7 +775,7 @@ class FriedFineScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Extra / Fine BDT',
+                        BanglaLocalizations.of(context).addExtraFineBDT,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -587,8 +846,8 @@ class FriedFineScreen extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                          child: Text(BanglaLocalizations.of(context).save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -685,8 +944,7 @@ class FriedFineScreen extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0D9488),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),                          child: Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -702,6 +960,7 @@ class FriedFineScreen extends StatelessWidget {
   void _showClearConfirmDialog(BuildContext context, MessProvider provider, Member member) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -710,9 +969,15 @@ class FriedFineScreen extends StatelessWidget {
             light: Colors.white,
             dark: const Color(0xFF0A0A0A),
                 ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'Clear Fines',
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
+          title:                      Text(
+                        BanglaLocalizations.of(context).clearFines,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
@@ -730,7 +995,7 @@ class FriedFineScreen extends StatelessWidget {
                 Navigator.pop(context);
                 GlassyNotification.show(context, message: 'Cleared all records for ${member.name}.');
               },
-              child: const Text('Clear All', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).clearAll, style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -741,6 +1006,7 @@ class FriedFineScreen extends StatelessWidget {
   void _showDeletePillConfirmDialog(BuildContext context, MessProvider provider, FriedFineItem item) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -749,7 +1015,13 @@ class FriedFineScreen extends StatelessWidget {
             light: Colors.white,
             dark: const Color(0xFF0A0A0A),
                 ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
           title: Text(
             'Delete Amount',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
@@ -769,7 +1041,7 @@ class FriedFineScreen extends StatelessWidget {
                 Navigator.pop(context);
                 GlassyNotification.show(context, message: 'Deleted amount BDT ${item.amount.toInt()}.');
               },
-              child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).delete, style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );

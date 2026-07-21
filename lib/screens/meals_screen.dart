@@ -7,6 +7,7 @@ import '../providers/mess_provider.dart';
 import '../models/mess_data.dart';
 import 'package:mess_manager/widgets/glassy_notification.dart';
 import '../widgets/glass_dialog.dart';
+import '../l10n/bangla_localizations.dart';
 
 class MealsScreen extends StatefulWidget {
   const MealsScreen({super.key});
@@ -17,10 +18,15 @@ class MealsScreen extends StatefulWidget {
 
 class _MealsScreenState extends State<MealsScreen> {
   DateTime _selectedDate = DateTime.now();
-  int _guestMeals = 0;
   
   // Track Breakfast, Lunch, Dinner states locally
   final Map<String, Map<String, bool>> _mealsState = {};
+
+  // ── Helper: format date with localized month name
+  String _formatDateLocalized(DateTime date, BanglaLocalizations bn) {
+    final months = _getMonthsList(bn);
+    return '${date.day} ${months[date.month - 1].substring(0, 3)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +56,10 @@ class _MealsScreenState extends State<MealsScreen> {
     }).length;
 
     int totalActiveCount = activeMembers.length;
+    
+    // Get guest meal records for selected date
+    final guestMealsToday = provider.getGuestMealsForDate(dateString);
+    double totalGuestMeals = guestMealsToday.fold(0.0, (sum, item) => sum + item.count.toDouble());
 
     // Check if all active members have B, L, and D checked
     bool isAllMarked = activeMembers.isNotEmpty && activeMembers.every((m) {
@@ -58,7 +68,7 @@ class _MealsScreenState extends State<MealsScreen> {
       return state['B']! && state['L']! && state['D']!;
     });
 
-    double totalMealsCountToday = _guestMeals.toDouble();
+    double totalMealsCountToday = totalGuestMeals;
     for (var m in activeMembers) {
       final state = _mealsState[m.id];
       if (state != null) {
@@ -68,6 +78,7 @@ class _MealsScreenState extends State<MealsScreen> {
       }
     }
 
+    final bn = BanglaLocalizations.of(context);
     double screenWidth = MediaQuery.of(context).size.width;
     bool isDesktop = screenWidth > 850;
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -88,7 +99,7 @@ class _MealsScreenState extends State<MealsScreen> {
           children: [
             if (isDesktop) ...[
               Text(
-                'Daily Meals Tracker',
+                BanglaLocalizations.of(context).dailyMealsTracker,
                 style: TextStyle(
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                   fontSize: 24,
@@ -97,7 +108,7 @@ class _MealsScreenState extends State<MealsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Track and mark daily active meals for all mess members',
+                BanglaLocalizations.of(context).mealsDesc,
                 style: TextStyle(
                   color: Colors.grey[500],
                   fontSize: 12,
@@ -112,14 +123,14 @@ class _MealsScreenState extends State<MealsScreen> {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 _buildStatBox(
-                  title: 'Eating / Active Today',
+                  title: BanglaLocalizations.of(context).eatingActiveToday,
                   value: '$eatingTodayCount/$totalActiveCount',
                   isDark: isDark,
                 ),
                 const SizedBox(width: 12),
                 _buildStatBox(
-                  title: 'Total Meals Today',
-                  value: 'Total = ${totalMealsCountToday % 1 == 0 ? totalMealsCountToday.toInt().toString() : totalMealsCountToday.toString()}',
+                  title: BanglaLocalizations.of(context).totalMealsToday,
+                  value: '${bn.total} = ${totalMealsCountToday % 1 == 0 ? totalMealsCountToday.toInt().toString() : totalMealsCountToday.toString()}',
                   isDark: isDark,
                 ),
               ],
@@ -132,7 +143,7 @@ class _MealsScreenState extends State<MealsScreen> {
               children: [
                 _buildActionButton(
                   icon: Icons.calendar_today_rounded,
-                  label: DateFormat('dd MMM').format(_selectedDate),
+                  label: _formatDateLocalized(_selectedDate, bn),
                   color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.45),
                   textColor: isDark ? Colors.white : const Color(0xFF334155),
                   border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.2), width: 1.5),
@@ -142,19 +153,8 @@ class _MealsScreenState extends State<MealsScreen> {
                 ),
                 const SizedBox(width: 8),
                 _buildActionButton(
-                  icon: Icons.add_circle_outline_rounded,
-                  label: _guestMeals > 0 ? 'Guest Meal ($_guestMeals)' : 'Guest Meal',
-                  color: isDark ? const Color(0xFF10B981).withValues(alpha: 0.15) : const Color(0xFF10B981).withValues(alpha: 0.08),
-                  textColor: isDark ? const Color(0xFF34D399) : const Color(0xFF065F46),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5), width: 1.5),
-                  onTap: () {
-                    _showGuestMealDialog();
-                  },
-                ),
-                const SizedBox(width: 8),
-                _buildActionButton(
                   icon: isAllMarked ? Icons.close_rounded : Icons.done_all_rounded,
-                  label: isAllMarked ? 'Unmark All' : 'Mark All',
+                  label: isAllMarked ? BanglaLocalizations.of(context).unmarkAll : BanglaLocalizations.of(context).markAll,
                   color: isAllMarked
                       ? const Color(0xFFEF4444)
                       : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFFEF4444).withValues(alpha: 0.08)),
@@ -168,7 +168,7 @@ class _MealsScreenState extends State<MealsScreen> {
                     );
                     GlassyNotification.show(
                       context, 
-                      message: isAllMarked ? 'Unmarked all meals successfully!' : 'Marked all meals successfully!'
+                      message: isAllMarked ? BanglaLocalizations.of(context).unmarkedSuccess : BanglaLocalizations.of(context).markedSuccess
                     );
                   },
                 ),
@@ -177,7 +177,7 @@ class _MealsScreenState extends State<MealsScreen> {
             const SizedBox(height: 24),
 
             Text(
-              'Active Members List',
+              BanglaLocalizations.of(context).activeMembersList,
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E293B),
                 fontSize: 15,
@@ -196,7 +196,7 @@ class _MealsScreenState extends State<MealsScreen> {
                           Icon(Icons.people_outline_rounded, size: 48, color: Colors.grey[400]),
                           const SizedBox(height: 8),
                           Text(
-                            'No members yet',
+                            BanglaLocalizations.of(context).msgNoMembersYet,
                             style: TextStyle(
                               color: Colors.grey[500],
                               fontSize: 16,
@@ -285,7 +285,7 @@ class _MealsScreenState extends State<MealsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           border: border,
         ),
         child: Row(
@@ -314,7 +314,7 @@ class _MealsScreenState extends State<MealsScreen> {
     
     bool isEatingToday = memberTotalMeals > 0.0;
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -323,7 +323,7 @@ class _MealsScreenState extends State<MealsScreen> {
           light: Colors.white,
           dark: const Color(0xFF0A0A0A),
             ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isEatingToday ? const Color(0xFF0D9488) : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.24)),
           width: 1.5,
@@ -380,7 +380,7 @@ class _MealsScreenState extends State<MealsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 color: isDark ? Colors.black26 : const Color(0xFFF1F1F8),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -405,7 +405,7 @@ class _MealsScreenState extends State<MealsScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                'All',
+                                BanglaLocalizations.of(context).all,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -427,6 +427,7 @@ class _MealsScreenState extends State<MealsScreen> {
                             provider.toggleDailyMeal(member.id, dateString, 'D', val);
                           }),
                           
+
                           Container(
                             width: 26,
                             height: 22,
@@ -480,7 +481,7 @@ class _MealsScreenState extends State<MealsScreen> {
             height: 18,
             decoration: BoxDecoration(
               color: isDark ? Colors.transparent : Colors.white,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(3),
               border: Border.all(
                 color: isChecked ? const Color(0xFF0D9488) : Colors.grey.withValues(alpha: 0.4),
                 width: 1.5,
@@ -498,6 +499,7 @@ class _MealsScreenState extends State<MealsScreen> {
   void _showCustomDatePicker() {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         return CustomDatePickerDialog(
           initialDate: _selectedDate,
@@ -511,84 +513,6 @@ class _MealsScreenState extends State<MealsScreen> {
     );
   }
 
-  void _showGuestMealDialog() {
-    int tempGuestCount = _guestMeals;
-    showGlassDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final themeProvider = Provider.of<ThemeProvider>(context);
-            bool isDark = themeProvider.isDarkMode;
-            return AlertDialog(
-                backgroundColor: themeProvider.resolveColor(
-                  light: Colors.white,
-                  dark: const Color(0xFF0A0A0A),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                title: Text(
-                  'Manage Guest Meals',
-                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Specify the number of extra/guest meals to add for today.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          if (tempGuestCount > 0) {
-                            setDialogState(() => tempGuestCount--);
-                          }
-                        },
-                        icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444), size: 28),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
-                          '$tempGuestCount',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B)),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          setDialogState(() => tempGuestCount++);
-                        },
-                        icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981), size: 28),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _guestMeals = tempGuestCount;
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Save', style: TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.bold)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 class CustomDatePickerDialog extends StatefulWidget {
@@ -609,11 +533,9 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
   late DateTime _focusedMonth;
   late DateTime _selectedDate;
 
-  final List<String> _weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  final List<String> _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  List<String> _getWeekDays(BanglaLocalizations bn) =>
+      [bn.sun, bn.mon, bn.tue, bn.wed, bn.thu, bn.fri, bn.sat];
+  List<String> _getMonths(BanglaLocalizations bn) => _getMonthsList(bn);
 
   @override
   void initState() {
@@ -635,6 +557,9 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     bool isDark = themeProvider.isDarkMode;
+    final bn = BanglaLocalizations.of(context);
+    final weekDays = _getWeekDays(bn);
+    final months = _getMonths(bn);
     
     int daysCount = _getDaysInMonth(_focusedMonth);
     int offset = _getFirstWeekdayOffset(_focusedMonth);
@@ -651,8 +576,11 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
               light: Colors.white,
               dark: const Color(0xFF0A0A0A),
             ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF0F172A).withValues(alpha: 0.08),
@@ -668,7 +596,7 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_months[_focusedMonth.month - 1]} ${_focusedMonth.year}',
+                    '${months[_focusedMonth.month - 1]} ${_focusedMonth.year}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -701,7 +629,7 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
               
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: _weekDays.map((day) {
+                children: weekDays.map((day) {
                   return Container(
                     width: 32,
                     alignment: Alignment.center,
@@ -755,7 +683,7 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: isSelected ? const Color(0xFF0D9488) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(5),
                         border: isToday && !isSelected
                             ? Border.all(color: const Color(0xFF0D9488), width: 1.5)
                             : null,
@@ -781,10 +709,10 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Cancel',
+                    child: Text(
+                      BanglaLocalizations.of(context).cancel,
                       style: TextStyle(
-                        color: Color(0xFF64748B),
+                        color: const Color(0xFF64748B),
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -802,8 +730,8 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
-                    child: const Text(
-                      'Select',
+                    child: Text(
+                      BanglaLocalizations.of(context).select,
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -820,3 +748,9 @@ class _CustomDatePickerDialogState extends State<CustomDatePickerDialog> {
     );
   }
 }
+
+// ── Shared helper: month names list (used by both MealsScreen and CustomDatePickerDialog) ──
+List<String> _getMonthsList(BanglaLocalizations bn) => [
+  bn.january, bn.february, bn.march, bn.april, bn.may, bn.june,
+  bn.july, bn.august, bn.september, bn.october, bn.november, bn.december
+];

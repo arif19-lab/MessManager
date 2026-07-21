@@ -6,10 +6,12 @@ Future<T?> showGlassDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
+  Color? barrierColor,
 }) {
   return showDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
+    barrierColor: barrierColor,
     builder: builder,
   );
 }

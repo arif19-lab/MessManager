@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../l10n/bangla_localizations.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
@@ -210,11 +211,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
     bool isDesktop = screenWidth > 850;
+    final bn = BanglaLocalizations.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     bool isDark = themeProvider.isDarkMode;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Blends with HomeScreen
+      backgroundColor: Colors.transparent,
       body: SingleChildScrollView(
         padding: EdgeInsets.only(
           left: isDesktop ? 32 : 16,
@@ -244,7 +246,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Notifications Toggle',
+                        bn.notificationsToggle,
                         style: TextStyle(
                           color: isDark ? Colors.white : const Color(0xFF1E293B),
                           fontSize: 16,
@@ -253,7 +255,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Enable to receive updates',
+                        bn.enableReceivingUpdates,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
@@ -274,7 +276,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _saveSettings();
                     },
                     activeThumbColor: Colors.white,
-                    activeTrackColor: const Color(0xFF6EE7B7), // Light green toggle
+                    activeTrackColor: const Color(0xFF6EE7B7),
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: Colors.grey[300],
                   ),
@@ -282,11 +284,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Main space between master toggle and reminders
             const SizedBox(height: 24),
             
             Text(
-              'Reminders',
+              bn.reminders,
               style: TextStyle(
                 color: isDark ? Colors.grey[400] : const Color(0xFF475569),
                 fontSize: 16,
@@ -296,7 +297,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 16),
             
             _buildReminderCard(
-              title: 'Meal Reminder',
+              title: bn.mealReminder,
               time: mealTime,
               isOn: mealReminder,
               msgController: mealMsgCtrl,
@@ -310,7 +311,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 16),
             
             _buildReminderCard(
-              title: 'Expense Tracking',
+              title: bn.expenseTracking,
               time: expenseTime,
               isOn: expenseTracking,
               msgController: expenseMsgCtrl,
@@ -324,7 +325,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 16),
 
             _buildReminderCard(
-              title: 'Payment Alert',
+              title: bn.paymentAlert,
               time: paymentTime,
               isOn: paymentAlert,
               msgController: paymentMsgCtrl,
@@ -354,6 +355,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     bool isDark = themeProvider.isDarkMode;
+    final bn = BanglaLocalizations.of(context);
     // Format time for display (e.g., 8:00 pm)
     final timeStr = time.format(context).toLowerCase();
 
@@ -397,7 +399,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           const SizedBox(height: 2),
           Text(
-            'Set for $timeStr',
+            '${bn.setFor} $timeStr',
             style: TextStyle(
               color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
               fontSize: 12,
@@ -419,7 +421,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Change Time',
+                    '${bn.changeTime}',
                     style: TextStyle(
                       color: isDark ? Colors.grey[400] : const Color(0xFF475569),
                       fontSize: 12,
@@ -444,7 +446,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
-              labelText: 'Custom Message',
+              labelText: bn.customMessage,
               labelStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

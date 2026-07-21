@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/bangla_localizations.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bn = BanglaLocalizations.of(context);
     final provider = Provider.of<MessProvider>(context);
     
     // Calculations
@@ -49,7 +51,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 // Desktop Header Title
                 if (isDesktop) ...[
                   Text(
-                    _showShopDue ? 'Shop Due Records' : 'Mess Expenses',
+                    _showShopDue ? bn.shopDueRecords : bn.messExpenses,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 24,
@@ -59,8 +61,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   const SizedBox(height: 4),
                   Text(
                     _showShopDue
-                        ? 'Manage shop dues, payments, and individual outstanding items'
-                        : 'Track all daily bazaar and mess cost items',
+                        ? bn.shopDueDesc
+                        : bn.expensesDesc,
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 12,
@@ -91,7 +93,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 border: Border.all(color: Colors.grey.withValues(alpha: 0.24), width: 1.0),
                               ),
                               child: Text(
-                                'Back Expenses',
+                                bn.backExpenses,
                                 style: TextStyle(
                                   color: isDark ? Colors.white : const Color(0xFF1E293B),
                                   fontWeight: FontWeight.bold,
@@ -110,14 +112,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFF5B1D1D), // Add Shop Due style
+                                color: Colors.transparent, // Add Shop Due - matches Add Expense green style
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.transparent, width: 1.0),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                                  width: 1.5,
+                                ),
                               ),
-                              child: const Text(
-                                'Add Shop Due',
+                              child: Text(
+                                bn.addShopDue,
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -160,7 +165,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      _showShopDue ? 'Add Amount' : 'Add Expense',
+                                      _showShopDue ? bn.addAmount : bn.addExpense,
                                       style: TextStyle(
                                         color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                         fontWeight: FontWeight.bold,
@@ -183,7 +188,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.24), width: 1.0),
                           ),
                           child: Text(
-                            'Total = ${_showShopDue ? totalShopDue.toInt() : totalExpenses.toInt()}',
+                            '${bn.total} = ${_showShopDue ? totalShopDue.toInt() : totalExpenses.toInt()}',
                             style: TextStyle(
                               color: isDark ? Colors.white : const Color(0xFF1E293B),
                               fontWeight: FontWeight.bold,
@@ -253,7 +258,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _showShopDue ? 'Add Amount' : 'Add Expense',
+                              _showShopDue ? bn.addAmount : bn.addExpense,
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                 fontWeight: FontWeight.bold,
@@ -286,7 +291,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             Icon(Icons.shopping_bag_outlined, size: 48, color: Colors.grey[400]),
             const SizedBox(height: 8),
             Text(
-              'No expense records yet',
+              BanglaLocalizations.of(context).noExpensesYet,
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 16,
@@ -479,7 +484,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             Icon(Icons.payment_outlined, size: 48, color: Colors.grey[400]),
             const SizedBox(height: 8),
             Text(
-              'No shop dues yet',
+              BanglaLocalizations.of(context).noShopDuesYet,
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 16,
@@ -726,6 +731,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -741,7 +747,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     color: themeProvider.resolveColor(
                       light: Colors.white,
                       dark: const Color(0xFF0A0A0A),
-                    ),                     border: null,
+                    ),                     border: Border.all(
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -756,7 +765,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Expense Item',
+                        '${BanglaLocalizations.of(context).addExpenseItem}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -764,9 +773,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildDialogField(titleController, 'Expense Title (e.g. Bazar)', Icons.shopping_bag_outlined),
+                            _buildDialogField(titleController, BanglaLocalizations.of(context).expenseTitle, Icons.shopping_bag_outlined),
                             const SizedBox(height: 12),
-                            _buildDialogField(amountController, 'Amount (BDT)', Icons.monetization_on_outlined, isNumeric: true),
+                            _buildDialogField(amountController, BanglaLocalizations.of(context).amountBDT, Icons.monetization_on_outlined, isNumeric: true),
                             const SizedBox(height: 16),
                             const Align(
                               alignment: Alignment.centerLeft,
@@ -842,6 +851,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -857,7 +867,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     color: themeProvider.resolveColor(
                       light: Colors.white,
                       dark: const Color(0xFF0A0A0A),
-                    ),                     border: null,
+                    ),                     border: Border.all(
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -872,7 +885,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Edit Expense details',
+                        '${BanglaLocalizations.of(context).editExpense}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -880,9 +893,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildDialogField(titleController, 'Expense Title', Icons.shopping_bag_outlined),
+                            _buildDialogField(titleController, BanglaLocalizations.of(context).expenseTitle, Icons.shopping_bag_outlined),
                             const SizedBox(height: 12),
-                            _buildDialogField(amountController, 'Amount (BDT)', Icons.monetization_on_outlined, isNumeric: true),
+                            _buildDialogField(amountController, BanglaLocalizations.of(context).amountBDT, Icons.monetization_on_outlined, isNumeric: true),
                             const SizedBox(height: 16),
                             const Align(
                               alignment: Alignment.centerLeft,
@@ -910,7 +923,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -934,7 +947,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(BanglaLocalizations.of(context).save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -952,6 +965,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   void _showDeleteExpenseConfirmDialog(BuildContext context, MessProvider provider, Expense expense) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -961,9 +975,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             dark: const Color(0xFF0A0A0A),
 
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'Delete Expense',
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
+          title: Text(                '${BanglaLocalizations.of(context).deleteExpense}',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
@@ -973,7 +992,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () {
@@ -981,7 +1000,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Navigator.pop(context);
                 GlassyNotification.show(context, message: 'Removed expense "${expense.title}".');
               },
-              child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).delete, style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -996,6 +1015,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -1011,7 +1031,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     color: themeProvider.resolveColor(
                       light: Colors.white,
                       dark: const Color(0xFF0A0A0A),
-                    ),                     border: null,
+                    ),                     border: Border.all(
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -1026,7 +1049,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Shop Due Record',
+                        '${BanglaLocalizations.of(context).addShopDueRecord}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -1034,15 +1057,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildDialogField(titleController, 'Due Item (e.g. চাল)', Icons.payment_outlined),
+                            _buildDialogField(titleController, BanglaLocalizations.of(context).dueItemTitle, Icons.payment_outlined),
                             const SizedBox(height: 12),
-                            _buildDialogField(amountController, 'Amount (BDT)', Icons.monetization_on_outlined, isNumeric: true),
+                            _buildDialogField(amountController, BanglaLocalizations.of(context).amountBDT, Icons.monetization_on_outlined, isNumeric: true),
                             const SizedBox(height: 16),
-                            const Align(
+                            Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Select Member',
-                                style: TextStyle(
+                              child: Text(                                 '${BanglaLocalizations.of(context).selectMember2}',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF64748B),
@@ -1064,7 +1086,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -1090,7 +1112,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(BanglaLocalizations.of(context).save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -1112,6 +1134,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -1127,7 +1150,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     color: themeProvider.resolveColor(
                       light: Colors.white,
                       dark: const Color(0xFF0A0A0A),
-                    ),                     border: null,
+                    ),                     border: Border.all(
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -1142,7 +1168,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Edit Shop Due details',
+                        '${BanglaLocalizations.of(context).editShopDue}',
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -1150,15 +1176,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildDialogField(titleController, 'Due Item Title', Icons.payment_outlined),
+                            _buildDialogField(titleController, BanglaLocalizations.of(context).dueItemTitle, Icons.payment_outlined),
                             const SizedBox(height: 12),
-                            _buildDialogField(amountController, 'Amount (BDT)', Icons.monetization_on_outlined, isNumeric: true),
+                            _buildDialogField(amountController, BanglaLocalizations.of(context).amountBDT, Icons.monetization_on_outlined, isNumeric: true),
                             const SizedBox(height: 16),
-                            const Align(
+                            Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Select Member',
-                                style: TextStyle(
+                              child: Text(                                 '${BanglaLocalizations.of(context).selectMember2}',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF64748B),
@@ -1180,7 +1205,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -1204,7 +1229,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               backgroundColor: const Color(0xFF0D9488),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(BanglaLocalizations.of(context).save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -1222,6 +1247,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   void _showDeleteShopDueConfirmDialog(BuildContext context, MessProvider provider, ShopDueItem item) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -1231,9 +1257,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             dark: const Color(0xFF0A0A0A),
 
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'Delete Shop Due',
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
+          title: Text(                '${BanglaLocalizations.of(context).deleteShopDue}',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
@@ -1243,7 +1274,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(BanglaLocalizations.of(context).cancel, style: const TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () {
@@ -1251,7 +1282,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Navigator.pop(context);
                 GlassyNotification.show(context, message: 'Removed shop due "${item.title}".');
               },
-              child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).delete, style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );

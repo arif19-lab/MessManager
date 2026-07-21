@@ -15,6 +15,8 @@ import '../widgets/drawer_widget.dart';
 import '../widgets/profile_dialog.dart';
 import '../widgets/theme_transition_wrapper.dart';
 import '../widgets/glassy_notification.dart';
+import '../l10n/bangla_localizations.dart';
+import '../providers/language_provider.dart';
 import 'meals_screen.dart';
 import 'people_screen.dart';
 import 'expenses_screen.dart';
@@ -33,7 +35,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   double _lastCx = 0.0;
 
@@ -42,9 +44,38 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSettingsPanelOpen = false;
   bool _isDrawerOpen = false;
 
+  // Desktop navbar sliding indicator measurement
+  final GlobalKey _navTabsRowKey = GlobalKey();
+  final List<GlobalKey> _navTabKeys = List.generate(6, (_) => GlobalKey());
+  double? _navIndicatorLeft;
+  double? _navIndicatorWidth;
+
+  // Snake-molt animation for the sliding indicator (shine sweep + squash-stretch)
+  late final AnimationController _navMoltController;
+
+  void _updateNavIndicator() {
+    final rowBox = _navTabsRowKey.currentContext?.findRenderObject() as RenderBox?;
+    if (rowBox == null || !rowBox.hasSize) return;
+    if (_currentIndex < 0 || _currentIndex >= _navTabKeys.length) return;
+    final tabBox = _navTabKeys[_currentIndex].currentContext?.findRenderObject() as RenderBox?;
+    if (tabBox == null || !tabBox.hasSize) return;
+    final double left = tabBox.localToGlobal(Offset.zero, ancestor: rowBox).dx;
+    final double width = tabBox.size.width;
+    if (_navIndicatorLeft != left || _navIndicatorWidth != width) {
+      setState(() {
+        _navIndicatorLeft = left;
+        _navIndicatorWidth = width;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _navMoltController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _applySystemUIFromPrefs();
   }
 
@@ -59,28 +90,36 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     // Restore edge-to-edge when leaving HomeScreen
+    _navMoltController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
   void _onTabChanged(int index) {
+    // Trigger the snake-molt effect only when moving between the 6 main tabs
+    final bool moltable = index != _currentIndex &&
+        index >= 0 && index < 6 &&
+        _currentIndex >= 0 && _currentIndex < 6;
     setState(() {
       _currentIndex = index;
     });
+    if (moltable) {
+      _navMoltController.forward(from: 0.0);
+    }
   }
 
-  String _getAppBarTitle() {
+  String _getAppBarTitle(BanglaLocalizations bn) {
     switch (_currentIndex) {
-      case 0: return 'Mess Manager';
-      case 1: return 'Meals';
-      case 2: return 'People';
-      case 3: return 'Expenses';
-      case 4: return 'Payments';
-      case 5: return 'Feast & Fines (Total)';
-      case 6: return 'Summary';
-      case 7: return 'Mess Manager';
-      case 8: return 'Settings';
-      default: return 'Mess Manager';
+      case 0: return bn.appTitle;
+      case 1: return bn.navMeals;
+      case 2: return bn.navPeople;
+      case 3: return bn.navExpenses;
+      case 4: return bn.navPayments;
+      case 5: return bn.navFeastFines;
+      case 6: return bn.navSummary;
+      case 7: return bn.appTitle;
+      case 8: return bn.navSettings;
+      default: return bn.appTitle;
     }
   }
 
@@ -355,6 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  // Labels updated dynamically in _buildAnimatedNavBar via BanglaLocalizations
   static const List<_NavItemData> _navItems = [
     _NavItemData('Home',     Icons.grid_view_rounded,       'assets/icons/dashboard.png'),
     _NavItemData('Meals',    Icons.restaurant_menu_rounded, 'assets/icons/meals.png'),
@@ -537,26 +577,53 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isSmallDesktop = screenWidth < 1200;
 
     const double tabSpacing = 6.0;
-    double tabWidth = isSmallDesktop ? 48.0 : 115.0;
+
+    // Measure the active tab after each layout so the indicator matches its
+    // real (natural) size and position, regardless of label length.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateNavIndicator());
+
+    const int tabCount = 6;
+    final bool indicatorVisible = _currentIndex >= 0 && _currentIndex < tabCount;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── The Tab Buttons (each is its own filled pill) ──
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        // ── Tab buttons with a green pill that glides between them ──
+        Stack(
           children: [
-            _buildFixedTab(0, Icons.grid_view_rounded, 'Dashboard', tabWidth, showLabel: !isSmallDesktop),
-            const SizedBox(width: tabSpacing),
-            _buildFixedTab(1, Icons.restaurant_menu_rounded, 'Meals', tabWidth, showLabel: !isSmallDesktop),
-            const SizedBox(width: tabSpacing),
-            _buildFixedTab(2, Icons.people_alt_rounded, 'People', tabWidth, showLabel: !isSmallDesktop),
-            const SizedBox(width: tabSpacing),
-            _buildFixedTab(3, Icons.shopping_bag_rounded, 'Expenses', tabWidth, showLabel: !isSmallDesktop),
-            const SizedBox(width: tabSpacing),
-            _buildFixedTab(4, Icons.credit_card_rounded, 'Payments', tabWidth, showLabel: !isSmallDesktop),
-            const SizedBox(width: tabSpacing),
-            _buildFixedTab(5, Icons.gavel_rounded, 'Feast & Fines', tabWidth, showLabel: !isSmallDesktop),
+            // The sliding green indicator (sits behind the tabs)
+            if (_navIndicatorLeft != null && _navIndicatorWidth != null)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 360),
+                curve: Curves.easeOutCubic,
+                left: _navIndicatorLeft!,
+                top: 0,
+                bottom: 0,
+                width: _navIndicatorWidth!,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: indicatorVisible ? 1.0 : 0.0,
+                  child: _buildMoltPill(),
+                ),
+              ),
+            // The tab buttons on top of the indicator
+            Row(
+              key: _navTabsRowKey,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFixedTab(0, Icons.grid_view_rounded, BanglaLocalizations.of(context).tabDashboard, showLabel: !isSmallDesktop, tabKey: _navTabKeys[0]),
+                const SizedBox(width: tabSpacing),
+                _buildFixedTab(1, Icons.restaurant_menu_rounded, BanglaLocalizations.of(context).tabMeals, showLabel: !isSmallDesktop, tabKey: _navTabKeys[1]),
+                const SizedBox(width: tabSpacing),
+                _buildFixedTab(2, Icons.people_alt_rounded, BanglaLocalizations.of(context).tabPeople, showLabel: !isSmallDesktop, tabKey: _navTabKeys[2]),
+                const SizedBox(width: tabSpacing),
+                _buildFixedTab(3, Icons.shopping_bag_rounded, BanglaLocalizations.of(context).tabExpenses, showLabel: !isSmallDesktop, tabKey: _navTabKeys[3]),
+                const SizedBox(width: tabSpacing),
+                _buildFixedTab(4, Icons.credit_card_rounded, BanglaLocalizations.of(context).tabPayments, showLabel: !isSmallDesktop, tabKey: _navTabKeys[4]),
+                const SizedBox(width: tabSpacing),
+                _buildFixedTab(5, Icons.gavel_rounded, BanglaLocalizations.of(context).tabFeastFines, showLabel: !isSmallDesktop, tabKey: _navTabKeys[5]),
+              ],
+            ),
           ],
         ),
         const SizedBox(width: 10),
@@ -675,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
+              physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -697,7 +764,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                          'Appearance',
+                          BanglaLocalizations.of(context).appearance,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
@@ -752,7 +819,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    'Light',
+                                    BanglaLocalizations.of(context).light,
                                     style: TextStyle(
                                       color: isDark ? Colors.grey[300] : const Color(0xFF475569),
                                       fontSize: 11,
@@ -778,7 +845,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    'Dark',
+                                    BanglaLocalizations.of(context).dark,
                                     style: TextStyle(
                                       color: isDark ? Colors.grey[300] : const Color(0xFF475569),
                                       fontSize: 11,
@@ -793,11 +860,67 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  _buildSettingsMenuItem(isDark: isDark, value: 6, icon: Icons.description_outlined, text: 'Reports', ctx: ctx),
+                  // ── Language Section ──
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161B22) : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.45) : Colors.black.withValues(alpha: 0.05),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            BanglaLocalizations.of(context).language,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _LanguageTogglePill(
+                                label: 'English',
+                                isSelected: !context.watch<LanguageProvider>().isBangla,
+                                isDark: isDark,
+                                onTap: () {
+                                  context.read<LanguageProvider>().setLocale(const Locale('en'));
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _LanguageTogglePill(
+                                label: 'বাংলা',
+                                isSelected: context.watch<LanguageProvider>().isBangla,
+                                isDark: isDark,
+                                onTap: () {
+                                  context.read<LanguageProvider>().setLocale(const Locale('bn', 'BD'));
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildSettingsMenuItem(isDark: isDark, value: 6, icon: Icons.description_outlined, imageAssetPath: 'assets/icons/report.png', text: BanglaLocalizations.of(context).reports, ctx: ctx),
                   const SizedBox(height: 8),
-                  _buildSettingsMenuItem(isDark: isDark, value: 8, icon: Icons.palette_outlined, text: 'Customize Home', ctx: ctx),
+                  _buildSettingsMenuItem(isDark: isDark, value: 8, icon: Icons.palette_outlined, imageAssetPath: 'assets/icons/customize-home.png', text: BanglaLocalizations.of(context).customizeHome, ctx: ctx),
                   const SizedBox(height: 8),
-                  _buildSettingsMenuItem(isDark: isDark, value: 7, icon: Icons.notifications_none_outlined, text: 'Notifications', ctx: ctx),
+                  _buildSettingsMenuItem(isDark: isDark, value: 7, icon: Icons.notifications_none_outlined, imageAssetPath: 'assets/icons/notification.png', text: BanglaLocalizations.of(context).notifications, ctx: ctx),
                 ],
               ),
             ),
@@ -811,11 +934,11 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isActive = _currentIndex == 7 || _currentIndex == 6 || _isSettingsPanelOpen;
     return GestureDetector(
       onTap: () => _showSettingsPanel(context),
-      child: _buildPillTabChild(7, Icons.settings_rounded, 'Settings', isActive),
+      child: _buildPillTabChild(7, Icons.settings_rounded, BanglaLocalizations.of(context).navSettings, isActive),
     );
   }
 
-  Widget _buildSettingsMenuItem({required int value, required IconData icon, required String text, required bool isDark, required BuildContext ctx}) {
+  Widget _buildSettingsMenuItem({required int value, required IconData icon, required String text, required bool isDark, required BuildContext ctx, String? imageAssetPath}) {
     return InkWell(
       onTap: () {
         if (Navigator.canPop(ctx)) {
@@ -834,7 +957,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+            imageAssetPath != null
+                ? Image.asset(
+                    imageAssetPath,
+                    width: 20,
+                    height: 20,
+                    fit: BoxFit.contain,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  )
+                : Icon(icon, size: 20, color: isDark ? Colors.white : const Color(0xFF1E293B)),
             const SizedBox(width: 14),
             Text(
               text,
@@ -850,42 +981,86 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFixedTab(int index, IconData icon, String label, double width, {bool showLabel = true}) {
+  // Green indicator pill with a snake-molt feel: it squashes/stretches as it
+  // travels and a glossy highlight sweeps across it like fresh new skin.
+  Widget _buildMoltPill() {
+    return AnimatedBuilder(
+      animation: _navMoltController,
+      builder: (context, child) {
+        final double t = _navMoltController.value; // 0..1
+        final double bump = math.sin(t * math.pi); // 0 -> 1 -> 0
+        final double scaleX = 1.0 + 0.10 * bump;   // stretch along travel
+        final double scaleY = 1.0 - 0.07 * bump;   // squash vertically
+        // Glossy shine sweeps left -> right across the pill during travel
+        final double shineX = -1.4 + t * 2.8;      // Alignment.x from -1.4..1.4
+        final double shineOpacity = bump;          // brightest mid-travel
+
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()..scale(scaleX, scaleY),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF047857),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: IgnorePointer(
+                child: Align(
+                  alignment: Alignment(shineX, 0),
+                  child: Opacity(
+                    opacity: shineOpacity.clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: 0.4,
+                      child: Container(
+                        width: 26,
+                        height: 90,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Color(0x00FFFFFF),
+                              Color(0x8CFFFFFF),
+                              Color(0x00FFFFFF),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFixedTab(int index, IconData icon, String label, {bool showLabel = true, Key? tabKey}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     bool isActive = _currentIndex == index;
 
-    // Background is now completely transparent for both active and idle states
-    const Color bg = Colors.transparent;
-    
-    // Text matches the border colors to ensure readability since there's no background fill
-    final Color activeTextColor = themeProvider.resolveColor(
-      light: const Color(0xFF0F172A),
-      dark: const Color(0xFF2DD4BF),
-    );
+    // Active content is white (sits on the sliding green pill); inactive is green
+    const Color activeTextColor = Colors.white;
     final Color inactiveTextColor = themeProvider.resolveColor(
-      light: const Color(0xFFE11D48), // matches border
-      dark: const Color(0xFFFDA4AF),
+      light: const Color(0xFF047857),
+      dark: const Color(0xFF34D399),
     );
-    
-    final Color activeBorder = themeProvider.resolveColor(
-      light: const Color(0xFF0F172A),
-      dark: const Color(0xFF2DD4BF),
-    );
-    // Idle border: red
+    // Idle border keeps the green outline; active border is hidden (pill fills it)
     final Color inactiveBorder = themeProvider.resolveColor(
-      light: const Color(0xFFE11D48), // vivid red border
-      dark: const Color(0xFFBE123C),  // deeper red on dark
+      light: const Color(0xFF047857),
+      dark: const Color(0xFF34D399),
     );
 
-    Widget inner = AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+    Widget inner = Container(
       padding: EdgeInsets.symmetric(horizontal: showLabel ? 14 : 12, vertical: 8),
       decoration: BoxDecoration(
-        color: bg,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(50),
         border: Border.all(
-          color: isActive ? activeBorder : inactiveBorder,
+          color: isActive ? Colors.transparent : inactiveBorder,
           width: 1.5,
         ),
       ),
@@ -896,15 +1071,19 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildTabIcon(index, icon, isActive),
           if (showLabel) const SizedBox(width: 6),
           if (showLabel)
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
               style: TextStyle(
                 color: isActive ? activeTextColor : inactiveTextColor,
                 fontSize: 12,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                 letterSpacing: 0.1,
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
         ],
@@ -912,6 +1091,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return GestureDetector(
+      key: tabKey,
       onTap: () => _onTabChanged(index),
       behavior: HitTestBehavior.opaque,
       child: inner,
@@ -931,10 +1111,21 @@ class _HomeScreenState extends State<HomeScreen> {
       dark: Colors.white.withValues(alpha: 0.08),
     );
 
+    // Icon must contrast against its background in both states/themes.
+    // Active bg: navy (light) / white (dark)  →  icon: white (light) / dark (dark)
+    final Color activeIconColor = themeProvider.resolveColor(
+      light: Colors.white,
+      dark: const Color(0xFF282D37),
+    );
+    final Color inactiveIconColor = themeProvider.resolveColor(
+      light: const Color(0xFF1E293B),
+      dark: Colors.white,
+    );
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
-      padding: EdgeInsets.symmetric(horizontal: isActive ? 20 : 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: isActive ? activeBg : inactiveBg,
         borderRadius: BorderRadius.circular(24),
@@ -943,44 +1134,20 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 1.0,
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
-              );
-            },
-            child: Container(
-              key: ValueKey<bool>(isActive),
-              child: _buildTabIcon(index, icon, isActive),
-            ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutCubic,
-            child: isActive
-                ? Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        color: themeProvider.resolveColor(
-                          light: Colors.white,
-                          dark: const Color(0xFF282D37),
-                        ),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(scale: animation, child: child),
+          );
+        },
+        child: Icon(
+          icon,
+          key: ValueKey<bool>(isActive),
+          size: 16,
+          color: isActive ? activeIconColor : inactiveIconColor,
+        ),
       ),
     );
   }
@@ -997,28 +1164,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final activeColor = themeProvider.resolveColor(
-      light: const Color(0xFF0F172A),
-      dark: const Color(0xFF2DD4BF),
+      light: Colors.white,
+      dark: Colors.white,
     );
-    // Idle icon: red to match border
+    // Idle icon: visible in both themes (green on light, white on dark)
     final inactiveColor = themeProvider.resolveColor(
-      light: const Color(0xFFBE123C),
-      dark: const Color(0xFFFDA4AF),
+      light: const Color(0xFF047857),
+      dark: Colors.white,
     );
 
-    if (assetPath != null) {
-      return Image.asset(
-        assetPath,
-        width: 16,
-        height: 16,
-        color: isActive ? activeColor : inactiveColor,
-      );
-    }
+    final Widget iconChild = assetPath != null
+        ? Image.asset(
+            assetPath,
+            width: 16,
+            height: 16,
+            color: isActive ? activeColor : inactiveColor,
+          )
+        : Icon(
+            fallbackIcon,
+            color: isActive ? activeColor : inactiveColor,
+            size: 16,
+          );
 
-    return Icon(
-      fallbackIcon,
-      color: isActive ? activeColor : inactiveColor,
-      size: 16,
+    // Subtle icon pop when the tab becomes active
+    return AnimatedScale(
+      scale: isActive ? 1.18 : 1.0,
+      duration: const Duration(milliseconds: 340),
+      curve: Curves.easeOutBack,
+      child: iconChild,
     );
   }
 }
@@ -1139,7 +1312,14 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const ClockWidget(isDesktop: false),
+          Transform.scale(
+            scale: 0.9,
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 330),
+              child: const ClockWidget(isDesktop: false),
+            ),
+          ),
           Consumer<MessProvider>(
             builder: (context, provider, _) {
               return GestureDetector(
@@ -1160,6 +1340,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
   }
 
   List<Widget> _buildCards(MessProvider provider) {
+    final bn = BanglaLocalizations.of(context);
     List<Widget> cards = [];
 
     // ── Helper: clamp a ratio to [0.0, 1.0] and format as "XX%" ──────────
@@ -1229,7 +1410,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showMealRate) {
       cards.add(DashboardCard(
-        title: 'Current Meal Rate',
+        title: bn.cardMealRate,
         icon: Icons.restaurant_rounded,
         iconAssetPath: 'assets/icons/meals.png',
         accentColor: const Color(0xFF3B82F6),
@@ -1244,7 +1425,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showActiveMembers) {
       cards.add(DashboardCard(
-        title: 'Active Members',
+        title: bn.cardActiveMembers,
         icon: Icons.people_outline_rounded,
         iconAssetPath: 'assets/icons/member.png',
         accentColor: const Color(0xFF10B981),
@@ -1259,7 +1440,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showMealsToday) {
       cards.add(DashboardCard(
-        title: 'Meals Today',
+        title: bn.cardMealsToday,
         icon: Icons.lunch_dining_rounded,
         iconAssetPath: 'assets/icons/meals.png',
         accentColor: const Color(0xFFF59E0B),
@@ -1274,7 +1455,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showTotalMeals) {
       cards.add(DashboardCard(
-        title: 'Total Meals (Cycle)',
+        title: bn.cardTotalMeals,
         icon: Icons.calendar_month_rounded,
         iconAssetPath: 'assets/icons/meals.png',
         accentColor: const Color(0xFFEC4899),
@@ -1289,7 +1470,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showTotalExpenses) {
       cards.add(DashboardCard(
-        title: 'Expenses (Cycle)',
+        title: bn.cardExpenses,
         icon: Icons.shopping_bag_rounded,
         iconAssetPath: 'assets/icons/expenses.png',
         accentColor: const Color(0xFF8B5CF6),
@@ -1304,7 +1485,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showTotalPayments) {
       cards.add(DashboardCard(
-        title: 'Payments (Cycle)',
+        title: bn.cardPayments,
         icon: Icons.credit_card_rounded,
         iconAssetPath: 'assets/icons/payments.png',
         accentColor: const Color(0xFF14B8A6),
@@ -1322,7 +1503,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
       // Positive = surplus (members paid more than your bill)
       // Negative = deficit (members owe more)
       cards.add(DashboardCard(
-        title: 'Meal Balance',
+        title: bn.cardMealBalance,
         icon: Icons.account_balance_wallet_rounded,
         iconAssetPath: 'assets/icons/dashboard.png',
         accentColor: mealBalance >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
@@ -1337,7 +1518,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showShopDue) {
       cards.add(DashboardCard(
-        title: 'Shop Due',
+        title: bn.cardShopDue,
         icon: Icons.storefront_rounded,
         iconAssetPath: 'assets/icons/expenses.png',
         accentColor: const Color(0xFF6B7280),
@@ -1352,7 +1533,7 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
 
     if (showFriedFine) {
       cards.add(DashboardCard(
-        title: 'Feast & Fines (Total)',
+        title: bn.cardFeastFines,
         icon: Icons.gavel_rounded,
         accentColor: const Color(0xFFEF4444),
         progressValue: friedFineProg,
@@ -1674,14 +1855,10 @@ class _AnimatedGreetingsHeaderState extends State<AnimatedGreetingsHeader> with 
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return "Good morning";
-    } else if (hour >= 12 && hour < 17) {
-      return "Good afternoon";
-    } else if (hour >= 17 && hour < 22) {
-      return "Good evening";
-    } else {
-      return "Good night";
+    if (hour >= 5 && hour < 12) {                  return BanglaLocalizations.of(context).greetingMorning;
+    } else if (hour >= 12 && hour < 17) {                  return BanglaLocalizations.of(context).greetingAfternoon;
+    } else if (hour >= 17 && hour < 22) {                  return BanglaLocalizations.of(context).greetingEvening;
+    } else {                  return BanglaLocalizations.of(context).greetingNight;
     }
   }
 
@@ -1702,7 +1879,7 @@ class _AnimatedGreetingsHeaderState extends State<AnimatedGreetingsHeader> with 
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  "MESS MANAGER",
+                  BanglaLocalizations.of(context).appTitle,
                   style: GoogleFonts.pressStart2p(
                     fontSize: 12, // Restored back to readable size outside card
                     fontWeight: FontWeight.bold,
@@ -1891,7 +2068,7 @@ class FolderCard extends StatelessWidget {
                 left: 10,
                 top: 3,
                 child: Text(
-                  'CONTROL PANEL',
+                  BanglaLocalizations.of(context).controlPanel,
                   style: TextStyle(
                     fontSize: 7.0,
                     fontWeight: FontWeight.w900,
@@ -1980,20 +2157,68 @@ class CurvedPanelPainter extends CustomPainter {
         oldDelegate.shadowOffset != shadowOffset ||
         oldDelegate.shadowColor != shadowColor;
   }
-}
+}  // Note: This standalone function does not have access to BanglaLocalizations context.
+  // The greeting is handled in AnimatedGreetingsHeader which has context access.
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon';
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good evening';
+    } else {
+      return 'Good night';
+    }
+  }
 
-String _getGreeting() {
-  final hour = DateTime.now().hour;
-  if (hour >= 5 && hour < 12) {
-    return 'Good morning';
-  } else if (hour >= 12 && hour < 17) {
-    return 'Good afternoon';
-  } else if (hour >= 17 && hour < 21) {
-    return 'Good evening';
-  } else {
-    return 'Good night';
+class _LanguageTogglePill extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _LanguageTogglePill({
+    required this.label,
+    required this.isSelected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF134E4A) : const Color(0xFF0D9488))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.4)),
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.grey[300] : const Color(0xFF475569)),
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }
+
 
 class _NeumorphicSwitch extends StatelessWidget {
   final bool isActive;

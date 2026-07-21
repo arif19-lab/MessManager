@@ -6,6 +6,7 @@ import '../providers/mess_provider.dart';
 import '../models/mess_data.dart';
 import '../widgets/glass_dialog.dart';
 import 'package:mess_manager/widgets/glassy_notification.dart';
+import '../l10n/bangla_localizations.dart';
 
 class PeopleScreen extends StatefulWidget {
   const PeopleScreen({super.key});
@@ -45,7 +46,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 // Title & Subtitle for Desktop
                 if (isDesktop) ...[
                   Text(
-                    'Members Directory',
+                    BanglaLocalizations.of(context).membersDirectory,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 24,
@@ -54,7 +55,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Manage mess members, room numbers, and contact details',
+                    BanglaLocalizations.of(context).membersDesc,
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 12,
@@ -73,11 +74,11 @@ class _PeopleScreenState extends State<PeopleScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.24), width: 1.0),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.25) : Colors.grey.withValues(alpha: 0.5), width: 1.0),
                       ),
                       child: Text(
-                        'Members List',
+                        BanglaLocalizations.of(context).membersList,
                         style: TextStyle(
                           color: isDark ? Colors.white : const Color(0xFF1E293B),
                           fontWeight: FontWeight.bold,
@@ -112,7 +113,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                     Icon(Icons.person_add_alt_1_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Add Member',
+                                      BanglaLocalizations.of(context).addMember,
                                       style: TextStyle(
                                         color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                         fontWeight: FontWeight.bold,
@@ -159,7 +160,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                               Icon(Icons.people_outline_rounded, size: 48, color: Colors.grey[400]),
                               const SizedBox(height: 8),
                               Text(
-                                'No members yet',
+                                BanglaLocalizations.of(context).msgNoMembersYet,
                                 style: TextStyle(
                                   color: Colors.grey[500],
                                   fontSize: 16,
@@ -221,7 +222,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                             Icon(Icons.person_add_alt_1_rounded, color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857), size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'Add Member',
+                              BanglaLocalizations.of(context).addMember,
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
                                 fontWeight: FontWeight.bold,
@@ -251,7 +252,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
           light: Colors.white,
           dark: const Color(0xFF0A0A0A),
             ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: member.isActive ? 0.25 : 0.12),
           width: 2.0,
@@ -381,6 +382,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -389,29 +391,35 @@ class _PeopleScreenState extends State<PeopleScreen> {
             light: Colors.white,
             dark: const Color(0xFF0A0A0A),
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
           title: Text(
-            'Add New Member',
+            BanglaLocalizations.of(context).addNewMember,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDialogField(nameController, 'Full Name', Icons.person_outline),
+                _buildDialogField(nameController, BanglaLocalizations.of(context).fullName, Icons.person_outline),
                 const SizedBox(height: 12),
-                _buildDialogField(emailController, 'Email Address', Icons.mail_outline),
+                _buildDialogField(emailController, BanglaLocalizations.of(context).emailAddress, Icons.mail_outline),
                 const SizedBox(height: 12),
-                _buildDialogField(phoneController, 'Phone Number', Icons.phone_android_outlined),
+                _buildDialogField(phoneController, BanglaLocalizations.of(context).phoneNumber, Icons.phone_android_outlined),
                 const SizedBox(height: 12),
-                _buildDialogField(roomController, 'Room / Seat Number', Icons.room_outlined),
+                _buildDialogField(roomController, BanglaLocalizations.of(context).roomSeatNumber, Icons.room_outlined),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(BanglaLocalizations.of(context).cancel, style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -438,7 +446,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 backgroundColor: const Color(0xFF0D9488),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -453,6 +461,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -461,20 +470,26 @@ class _PeopleScreenState extends State<PeopleScreen> {
             light: Colors.white,
             dark: const Color(0xFF0A0A0A),
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
           title: Text(
-            'Edit Member Details',
+            BanglaLocalizations.of(context).editMember,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDialogField(nameController, 'Full Name', Icons.person_outline),
+                _buildDialogField(nameController, BanglaLocalizations.of(context).fullName, Icons.person_outline),
                 const SizedBox(height: 12),
-                _buildDialogField(phoneController, 'Phone Number', Icons.phone_android_outlined),
+                _buildDialogField(phoneController, BanglaLocalizations.of(context).phoneNumber, Icons.phone_android_outlined),
                 const SizedBox(height: 12),
-                _buildDialogField(roomController, 'Room / Seat Number', Icons.room_outlined),
+                _buildDialogField(roomController, BanglaLocalizations.of(context).roomSeatNumber, Icons.room_outlined),
               ],
             ),
           ),
@@ -501,7 +516,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 backgroundColor: const Color(0xFF0D9488),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).save, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -512,6 +527,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
   void _showDeleteConfirmDialog(BuildContext context, MessProvider provider, Member member) {
     showGlassDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         bool isDark = themeProvider.isDarkMode;
@@ -520,9 +536,15 @@ class _PeopleScreenState extends State<PeopleScreen> {
             light: Colors.white,
             dark: const Color(0xFF0A0A0A),
           ),           elevation: null,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF34D399) : const Color(0xFF047857),
+              width: 1.5,
+            ),
+          ),
           title: Text(
-            'Delete Member',
+            BanglaLocalizations.of(context).deleteMember,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
@@ -532,15 +554,15 @@ class _PeopleScreenState extends State<PeopleScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(BanglaLocalizations.of(context).cancel, style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () {
                 provider.deleteMember(member.id);
                 Navigator.pop(context);
-                GlassyNotification.show(context, message: 'Removed ${member.name} from directory.');
+                GlassyNotification.show(context, message: '${member.name} সরানো হয়েছে।');
               },
-              child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: Text(BanglaLocalizations.of(context).delete, style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
             ),
           ],
         );

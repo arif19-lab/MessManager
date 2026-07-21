@@ -12,6 +12,7 @@ import 'package:mess_manager/services/auth_mode_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+import 'dart:ui';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,14 +31,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool get _googleSupported => true;
   final _secureStorage = const FlutterSecureStorage();
-  List<String> _savedEmails = [];
+  List<Map<String, String>> _savedAccounts = [];
   @override
   void initState() {
     super.initState();
     _emailController.clear();
     _passwordController.clear();
     _nameController.clear();
-    _loadSavedEmails();
+    _loadSavedAccounts();
   }
 
   @override
@@ -45,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+
     super.dispose();
   }
 
@@ -71,10 +73,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+      await AuthModeService.setGoogle(); // Treats email auth same as online/google auth
+      if (mounted) {
+        await context.read<MessProvider>().initialize();
+      }
 
-      await _saveEmail(_emailController.text.trim());
+      await _saveAccount(_emailController.text.trim(), _passwordController.text);
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -124,6 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
             return Dialog(
               backgroundColor: Colors.transparent,
               elevation: 0,
+              alignment: isWide ? Alignment.center : Alignment.bottomCenter,
+              insetPadding: isWide ? const EdgeInsets.symmetric(horizontal: 40, vertical: 24) : const EdgeInsets.only(bottom: 30, left: 16, right: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isWide ? 32 : 38)),
               child: isWide
                   ? Container(
@@ -316,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     await FirebaseService().resetPassword(email);
                                     if (context.mounted) {
                                       Navigator.pop(context, false);
-                                      _showResetSuccessDialog(context, email);
+                                      _showResetSuccessDialog(email);
                                     }
                                   } on auth.FirebaseAuthException catch (e) {
                                     String msg = 'Failed.';
@@ -504,7 +510,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         await FirebaseService().resetPassword(email);
                         if (context.mounted) {
                           Navigator.pop(context, false);
-                          _showResetSuccessDialog(context, email);
+                          _showResetSuccessDialog(email);
                         }
                       } on auth.FirebaseAuthException catch (e) {
                         String msg = 'Failed.';
@@ -532,30 +538,34 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _saveEmail(String email) async {
+  Future<void> _saveAccount(String email, String password) async {
     try {
       final existing = await _secureStorage.read(key: 'saved_emails');
-      List<String> emails = [];
+      List<Map<String, String>> accounts = [];
       if (existing != null) {
         final list = jsonDecode(existing) as List;
-        emails = list.map((e) => e as String).toList();
-        emails.removeWhere((e) => e == email);
+        accounts = list.map((e) => Map<String, String>.from(e as Map)).toList();
+        accounts.removeWhere((a) => a['email'] == email);
       }
-      emails.insert(0, email);
-      if (emails.length > 5) emails = emails.sublist(0, 5);
-      await _secureStorage.write(key: 'saved_emails', value: jsonEncode(emails));
-      if (mounted) setState(() => _savedEmails = emails);
+      accounts.insert(0, {'email': email, 'password': password});
+      if (accounts.length > 5) accounts = accounts.sublist(0, 5);
+      await _secureStorage.write(key: 'saved_emails', value: jsonEncode(accounts));
+      if (mounted) setState(() => _savedAccounts = accounts);
     } catch (_) {}
   }
 
-  Future<void> _loadSavedEmails() async {
+  Future<void> _loadSavedAccounts() async {
     try {
       final existing = await _secureStorage.read(key: 'saved_emails');
       if (existing != null) {
         final list = jsonDecode(existing) as List;
         if (mounted) {
           setState(() {
-          _savedEmails = list.map((e) => e as String).toList();
+          _savedAccounts = list.map((e) {
+            // Backward compatibility with old string list
+            if (e is String) return {'email': e, 'password': ''};
+            return Map<String, String>.from(e as Map);
+          }).toList();
         });
         }
       }
@@ -563,9 +573,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _deleteSavedEmail(String email) async {
-    setState(() => _savedEmails.removeWhere((e) => e == email));
-    await _secureStorage.write(key: 'saved_emails', value: jsonEncode(_savedEmails));
+  Future<void> _deleteSavedAccount(String email) async {
+    setState(() => _savedAccounts.removeWhere((a) => a['email'] == email));
+    await _secureStorage.write(key: 'saved_emails', value: jsonEncode(_savedAccounts));
   }
 
   void _showSavedAccountsSheet() {
@@ -625,18 +635,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 16),
-                if (_savedEmails.isEmpty)
+                if (_savedAccounts.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Center(child: Text('No saved accounts.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13))),
                   )
                 else
-                  ..._savedEmails.map((email) => Padding(
+..._savedAccounts.map((account) {
+                    final email = account['email'] ?? '';
+                    final password = account['password'] ?? '';
+                    return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: GestureDetector(
                       onTap: () {
                         Navigator.pop(ctx);
                         _emailController.text = email;
+                        if (password.isNotEmpty) {
+                          _passwordController.text = password;
+                          _handleLogin(); // Trigger auto-login
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -651,7 +668,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               radius: 16,
                               backgroundColor: const Color(0xFF0F766E),
                               child: Text(
-                                email[0].toUpperCase(),
+                                email.isNotEmpty ? email[0].toUpperCase() : '?',
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -666,7 +683,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             GestureDetector(
                               onTap: () {
                                 Navigator.pop(ctx);
-                                _deleteSavedEmail(email);
+                                _deleteSavedAccount(email);
                                 if (context.mounted) {
                                   GlassyNotification.show(context, message: 'Account removed.', isError: false);
                                 }
@@ -686,7 +703,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                  )),
+                    );
+                  }),
               ],
             ),
           ),
@@ -695,13 +713,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _fillSavedEmail(String email) {
-    _emailController.text = email;
-  }
 
-  void _showResetSuccessDialog(BuildContext ctx, String email) {
-    showGlassDialog(
-      context: ctx,
+  void _showResetSuccessDialog(String email) {
+    showDialog(
+      context: context,
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
@@ -854,621 +869,438 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    bool isWide = screenWidth > 800;
-
     return Scaffold(
-      body: isWide
-          ? Stack(
-              children: [
-                // 1. Background image for desktop
-                Positioned.fill(
-                  child: Image.asset(
-                    'assets/images/tropical_leaves.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Positioned.fill(
-                  child: Container(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-                // 2. Main Login Card Container
-                Center(
-                  child: _buildDesktopLayout(context),
-                ),
-              ],
-            )
-          : _buildMobileLayout(context),
-    );
-  }
-
-  // 3D Layered Wavy Papercut Desktop Layout with parallel shifted clippers
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Container(
-      width: 820,
-      height: 540,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Stack(
-          children: [
-            // Left Side: Form Panel (Starts from left 0 to width 470)
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 470,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 300), // Narrower form matching reference
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _isSignUp ? 'Sign Up' : 'Log in',
-                                style: const TextStyle(
-                                  color: Color(0xFF1E293B),
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.8,
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                              _buildLoginForm(isMobile: false),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // Right Side: Stacking Papercut waves & Green leaves artwork (occupies width 420 overlapping the form)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 420,
-              child: Stack(
-                children: [
-                  // Layer 1: Outer Shadow Wave (peeks out furthest left)
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: -36,
-                    width: 420,
-                    child: ClipPath(
-                      clipper: VerticalWavyClipper(),
-                      child: Container(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  // Layer 2: Light Grey/White Paper Wave
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: -24,
-                    width: 420,
-                    child: ClipPath(
-                      clipper: VerticalWavyClipper(),
-                      child: Container(
-                        color: const Color(0xFFF1F5F9),
-                      ),
-                    ),
-                  ),
-                  // Layer 3: Inner Shadow Wave (on paper)
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: -12,
-                    width: 420,
-                    child: ClipPath(
-                      clipper: VerticalWavyClipper(),
-                      child: Container(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.12),
-                      ),
-                    ),
-                  ),
-                  // Layer 4: Main Wave showing the tropical leaf illustration
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: 0,
-                    width: 420,
-                    child: ClipPath(
-                      clipper: VerticalWavyClipper(),
-                      child: SizedBox(
-                        height: double.infinity,
-                        width: double.infinity,
-                        child: Image.asset(
-                          'assets/images/tropical_leaves.png',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Mobile layout: Features a full-screen blurred leaves background and centered frosted glass card overlay
-  Widget _buildMobileLayout(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: Colors.white,
-      child: Stack(
+      backgroundColor: Colors.black, // Prevents white edges on mobile notches
+      body: Stack(
         children: [
-          // 1. Full-screen green leaves background
+          // Full-screen blurred background image
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/tropical_leaves.png',
-              fit: BoxFit.cover,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              child: Image.asset(
+                'assets/images/login_bg.jpg',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          // Dark translucent overlay to pop the card
+
+          // Dark gradient overlay to improve glass card contrast against white/bright background spots
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.24),
-            ),
-          ),
-          // 2. Glassmorphic center card containing the login form
-          Center(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(38),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 36,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(38),
-                child: Container(
-                  width: 320,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    borderRadius: BorderRadius.circular(38),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _isSignUp ? 'Sign Up' : 'Log in',
-                          style: const TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        _buildLoginForm(isMobile: true),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Form Fields & Button
-  Widget _buildLoginForm({bool isMobile = false}) {
-    const textColor = Color(0xFF0F172A); // Deep black-slate for maximum contrast
-    const subColor = Color(0xFF475569); // Dark grey-slate for label visibility
-    final textFillColor = isMobile ? Colors.white.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.85);
-    final textBorderColor = Colors.grey.withValues(alpha: 0.24);
-    final textFocusedBorderColor = const Color(0xFF0D9488);
-    final suffixIconColor = Colors.grey[500];
-    final dividerColor = isMobile ? Colors.grey.withValues(alpha: 0.35) : Colors.grey.withValues(alpha: 0.24);
-    final linkColor = const Color(0xFF0F766E);
-
-    return AutofillGroup(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        // Name Field (only for sign up)
-        if (_isSignUp) ...[
-          const Text(
-            'Full Name',
-            style: TextStyle(
-              color: subColor,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _nameController,
-            style: const TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              filled: true,
-              fillColor: textFillColor,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-                borderSide: BorderSide(color: textBorderColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-                borderSide: BorderSide(color: textFocusedBorderColor, width: 1.5),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        // 1. Email Field
-        const Text(
-          'Email',
-          style: TextStyle(
-            color: subColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _emailController,
-          autofillHints: const [AutofillHints.email],
-          textInputAction: TextInputAction.next,
-          style: const TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            filled: true,
-            fillColor: textFillColor,
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-              borderSide: BorderSide(color: textBorderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-              borderSide: BorderSide(color: textFocusedBorderColor, width: 1.5),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // 2. Password Field
-        const Text(
-          'Password',
-          style: TextStyle(
-            color: subColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _passwordController,
-          obscureText: _obscurePassword,
-          autofillHints: const [AutofillHints.password],
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _handleLogin(),
-          style: const TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            filled: true,
-            fillColor: textFillColor,
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-              borderSide: BorderSide(color: textBorderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isMobile ? 22 : 16),
-              borderSide: BorderSide(color: textFocusedBorderColor, width: 1.5),
-            ),
-            suffixIcon: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _obscurePassword = !_obscurePassword;
-                });
-              },
-              child: Icon(
-                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                color: suffixIconColor,
-                size: 16,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // 2b. Forgot Password
-        Align(
-          alignment: Alignment.centerRight,
-          child: GestureDetector(
-            onTap: () => _handleForgotPassword(context),
-            child: Text(
-              'Forgot Password?',
-              style: TextStyle(color: linkColor, fontSize: 9, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // 3. Login/Sign Up Button
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _handleLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF344C44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isMobile ? 22 : 16)),
-              elevation: 0,
-            ),
-            child: _isLoading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(
-                    _isSignUp ? 'Sign Up' : 'Log in',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // 3b. Saved Accounts Quick Login
-        if (!_isSignUp && _savedEmails.isNotEmpty) ...[
-          Center(
-            child: GestureDetector(
-              onTap: _showSavedAccountsSheet,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ..._savedEmails.take(3).map((email) => Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: CircleAvatar(
-                        radius: 12,
-                        backgroundColor: const Color(0xFF0F766E),
-                        child: Text(email[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                    )),
-                    Text(
-                      '${_savedEmails.length} saved email${_savedEmails.length > 1 ? 's' : ''}',
-                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right, size: 16, color: Color(0xFF94A3B8)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.65), // Darker at the top to hide white spots
+                    Colors.black.withValues(alpha: 0.2), // Lighter at bottom
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-        ],
 
-        // 4. Toggle Login/Sign Up
-        Center(
-          child: TextButton(
-            onPressed: () => setState(() => _isSignUp = !_isSignUp),
-            child: Text(
-              _isSignUp ? 'Already have an account? Log in' : 'Don\'t have an account? Sign up',
-              style: TextStyle(
-                color: linkColor,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+          // Centered glass card
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                child: _buildGlassCard(context),
               ),
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
 
-        if (!_isSignUp && _googleSupported) ...[
-          const SizedBox(height: 4),
-          // 5. "or log in with" Divider
-          Row(
-            children: [
-              Expanded(child: Divider(color: dividerColor)),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'or log in with',
-                  style: TextStyle(color: subColor, fontSize: 9, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Expanded(child: Divider(color: dividerColor)),
-            ],
-          ),
-          const SizedBox(height: 16),
+  Widget _buildGlassCard(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth > 500 ? 420.0 : screenWidth * 0.92;
 
-          // 6. Social Buttons (Google only)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: _isLoading ? null : _handleGoogleSignIn,
-                child: _buildSocialButton(
-                  isMobile: isMobile,
-                  child: Image.asset(
-                    'assets/icons/google.png',
-                    width: 26,
-                    height: 26,
-                    errorBuilder: (context, error, stackTrace) => const Text('G', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                  ),
-                ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          width: cardWidth,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.4),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // 7. Offline Mode Button
-          GestureDetector(
-            onTap: _isLoading ? null : _handleOfflineMode,
-            child: Container(
-              width: double.infinity,
-              height: isMobile ? 42 : 44,
-              decoration: BoxDecoration(
-                color: isMobile ? Colors.white.withValues(alpha: 0.2) : Colors.white,
-                borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
-                border: Border.all(
-                  color: isMobile ? Colors.white.withValues(alpha: 0.35) : const Color(0xFFCBD5E1),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row: Title & Toggle
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.wifi_off_rounded, size: 18, color: isMobile ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF64748B)),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Offline Mode',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isMobile ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF475569),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  Text(
+                    _isSignUp ? 'Sign Up' : 'Login',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _isSignUp = !_isSignUp),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        _isSignUp ? 'Login' : 'Sign Up',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 6),
+              Text(
+                _isSignUp
+                    ? 'Create your account to get started'
+                    : 'welcome back please login to your account',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Full Name (only for sign up)
+              if (_isSignUp) ...[
+                _buildGlassTextField(
+                  controller: _nameController,
+                  hint: 'Full Name',
+                  icon: Icons.person_outline,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Email Field
+              _buildGlassTextField(
+                controller: _emailController,
+                hint: _isSignUp ? 'Email' : 'User Name',
+                icon: Icons.person_outline,
+                suffixWidget: _savedAccounts.isNotEmpty && !_isSignUp
+                    ? GestureDetector(
+                        onTap: _showSavedAccountsSheet,
+                        child: Icon(
+                          Icons.arrow_drop_down,
+                          color: const Color(0xFF5A5A5A).withValues(alpha: 0.7),
+                          size: 22,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Password Field
+              _buildGlassTextField(
+                controller: _passwordController,
+                hint: 'Password',
+                icon: _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                isPassword: true,
+                onIconTap: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              const SizedBox(height: 16),
+
+              // Remember me + Forget Password row
+              if (!_isSignUp)
+                Row(
+                  children: [
+                    // Remember me checkbox (visual only)
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6B8E7B),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                      ),
+                      child: const Icon(Icons.check, size: 14, color: Colors.white),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Remember me',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => _handleForgotPassword(context),
+                      child: Text(
+                        'Forget Password?',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 24),
+
+              // Login / Sign Up Button (gradient)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981), // Emerald green color
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 22, height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            _isSignUp ? 'Sign Up' : 'Login',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+
+
+              // Divider
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.45), thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.45), thickness: 1)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Bottom Actions: Google & Offline Mode
+              Row(
+                children: [
+                  // Google Sign-In (Left)
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _handleGoogleSignIn,
+                        icon: Image.asset(
+                          'assets/icons/google.png',
+                          width: 18,
+                          height: 18,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Text('G', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Google',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.35),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Offline Mode (Right)
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: OutlinedButton(
+                        onPressed: _isLoading ? null : _handleOfflineMode,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.black.withValues(alpha: 0.15),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Offline Mode',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-        ],
-        if (!_isSignUp && !_googleSupported) const SizedBox(height: 24),
-        ],
+        ),
       ),
     );
   }
 
-  // Social Button Widget
-  Widget _buildSocialButton({required Widget child, bool isMobile = false}) {
-    final socialBg = isMobile ? Colors.white.withValues(alpha: 0.6) : Colors.white;
-    final socialBorder = isMobile ? Colors.white.withValues(alpha: 0.35) : Colors.grey.withValues(alpha: 0.24);
-
+  Widget _buildGlassTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    VoidCallback? onIconTap,
+    Widget? suffixWidget,
+  }) {
     return Container(
-      width: 48,
-      height: 48,
+      height: 52,
       decoration: BoxDecoration(
-        color: socialBg,
-        borderRadius: BorderRadius.circular(isMobile ? 16 : 12),
-        border: Border.all(color: socialBorder),
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.25),
+          width: 1.0,
+        ),
       ),
-      child: Center(child: child),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              obscureText: isPassword ? _obscurePassword : false,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                isDense: true,
+              ),
+            ),
+          ),
+          if (suffixWidget != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: suffixWidget,
+            ),
+          GestureDetector(
+            onTap: onIconTap,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Icon(
+                icon,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ==================== Mathematically Parallel Wavy Clipper (Desktop) ====================
+// ==================== Wavy Clipper (used in Reset Password Dialog) ====================
 class VerticalWavyClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
     final w = size.width;
     final h = size.height;
-    
+
     path.lineTo(w, 0);
     path.lineTo(w, h);
-    
-    // Smooth parallel bezier S-waves relative to the width (prevents squishing on narrow mobile screens)
-    path.lineTo(w * 0.14, h);
-    path.cubicTo(
-      w * 0.14, h * 0.8,
-      w * 0.40, h * 0.72,
-      w * 0.40, h * 0.62,
-    );
-    path.cubicTo(
-      w * 0.40, h * 0.52,
-      w * 0.06, h * 0.48,
-      w * 0.06, h * 0.38,
-    );
-    path.cubicTo(
-      w * 0.06, h * 0.28,
-      w * 0.28, h * 0.2,
-      w * 0.19, 0.0,
-    );
-    
+    path.lineTo(0, h);
+
+    final waveWidth = w * 0.28;
+    final segmentHeight = h / 4;
+
+    path.moveTo(0, 0);
+    for (int i = 0; i < 4; i++) {
+      final startY = segmentHeight * i;
+      final endY = segmentHeight * (i + 1);
+      final midY = (startY + endY) / 2;
+      path.quadraticBezierTo(waveWidth, midY, 0, endY);
+    }
+
     path.close();
     return path;
   }
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-// ==================== Diagonal 3D Wavy Clipper (Mobile) ====================
-class MobileWavyClipper extends CustomClipper<Path> {
-  final Offset offset;
-  MobileWavyClipper({this.offset = Offset.zero});
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    final w = size.width;
-    final h = size.height;
-    
-    // Diagonal wave starting from top-left to middle-right and down to bottom-left
-    final startX = 0.0 + offset.dx;
-    final startY = 0.0 + offset.dy;
-    
-    path.moveTo(startX, startY);
-    path.lineTo(w + offset.dx, startY);
-    path.lineTo(w + offset.dx, h * 0.32 + offset.dy);
-    
-    // Smooth responsive S-curves going diagonally across the screen
-    path.cubicTo(
-      w * 0.82 + offset.dx, h * 0.40 + offset.dy,
-      w * 0.68 + offset.dx, h * 0.34 + offset.dy,
-      w * 0.52 + offset.dx, h * 0.52 + offset.dy,
-    );
-    path.cubicTo(
-      w * 0.36 + offset.dx, h * 0.70 + offset.dy,
-      w * 0.18 + offset.dx, h * 0.64 + offset.dy,
-      startX, h * 0.78 + offset.dy,
-    );
-    
-    path.lineTo(startX, startY);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant MobileWavyClipper oldClipper) => oldClipper.offset != offset;
 }
