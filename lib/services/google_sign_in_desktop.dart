@@ -14,6 +14,7 @@ class GoogleSignInDesktop {
   static GoogleSignIn get googleSignIn => _googleSignIn;
 
   static Future<void> disconnect() async {
+    if (kIsWeb) return;
     try {
       await _googleSignIn.disconnect();
     } catch (_) {
