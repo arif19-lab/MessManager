@@ -54,19 +54,18 @@ If you want to run this project on your own machine, follow these steps:
    flutter run
    ```
 
-## 📦 Building the Windows Installer
+## 📦 Building Releases & Windows Installer
 
-To create a professional `Setup.exe` file for Windows distribution, we use **Inno Setup**.
+We have created an automated build script to make releasing effortless. It automatically increments versions, builds the APK, Web, and compiles the Windows `Setup.exe` (using Inno Setup) all at once!
 
-1. Download and install [Inno Setup Compiler](https://jrsoftware.org/isdl.php).
-2. Build the Flutter Windows app first:
+1. **Prerequisite (For Windows):** Download and install [Inno Setup Compiler](https://jrsoftware.org/isdl.php).
+2. Open PowerShell or terminal in the project root.
+3. Run the automated build script:
    ```bash
-   flutter build windows
+   .\build_app.ps1
    ```
-3. Open the `mess_manager_setup.iss` file located in the root of the project using Inno Setup.
-4. Update the `AppVersion` and `OutputBaseFilename` if you are releasing a new version.
-5. Click **Build > Compile** (or press `Ctrl + F9`).
-6. The compiled `Setup.exe` will be generated in `build/windows/installer/`.
+4. Follow the on-screen prompts to select your platform (Android, Web, Windows).
+5. **Magic!** The script will automatically build everything and generate the `Setup.exe` file inside `build/windows/installer/`. You do not need to manually edit the `.iss` file!
 
 ## 📜 License
 This project is for personal and educational use. Feel free to explore the code, learn, and contribute!
