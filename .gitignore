@@ -53,6 +53,6 @@ flutter_run_*.txt
 scratch_color_report.txt
 flutter_01.png
 revert_fried_fine.ps1
-build_app.ps1
-build_apk.ps1
-readfile.ps1
+
+# Logs
+logs/
