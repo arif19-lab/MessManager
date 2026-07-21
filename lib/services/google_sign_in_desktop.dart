@@ -31,18 +31,18 @@ class GoogleSignInDesktop {
 
     try {
       if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-        final googleSignIn = GoogleSignIn(
-          // For Android, google-services.json is used automatically.
-          // We pass serverClientId to get the idToken if needed for backend auth,
-          // but usually FirebaseAuth.instance handles it automatically.
-          serverClientId: '716451290126-vetvab60g1qc38koce9tk1te32clk6m9.apps.googleusercontent.com',
-        );
-        final googleUser = await googleSignIn.signIn();
-        if (googleUser == null) return null;
-
-        final googleAuth = await googleUser.authentication;
+        if (!_googleInitialized) {
+          await GoogleSignIn.instance.initialize(
+            // Use serverClientId for Android to get the idToken for Firebase Auth.
+            // Do NOT use clientId on Android as it conflicts with google-services.json
+            serverClientId: '716451290126-vetvab60g1qc38koce9tk1te32clk6m9.apps.googleusercontent.com',
+          );
+          _googleInitialized = true;
+        }
+        
+        final googleUser = await GoogleSignIn.instance.authenticate();
+        final googleAuth = googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         return await FirebaseAuth.instance.signInWithCredential(credential);
