@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/mess_provider.dart';
@@ -39,7 +38,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
-  double _lastCx = 0.0;
 
   int _dashboardKeyCount = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -112,21 +110,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
     if (moltable) {
       _navMoltController.forward(from: 0.0);
-    }
-  }
-
-  String _getAppBarTitle(BanglaLocalizations bn) {
-    switch (_currentIndex) {
-      case 0: return bn.appTitle;
-      case 1: return bn.navMeals;
-      case 2: return bn.navPeople;
-      case 3: return bn.navExpenses;
-      case 4: return bn.navPayments;
-      case 5: return bn.navFeastFines;
-      case 6: return bn.navSummary;
-      case 7: return bn.appTitle;
-      case 8: return bn.navSettings;
-      default: return bn.appTitle;
     }
   }
 
@@ -349,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: AnimatedBuilder(
           animation: _drawerController,
           child: mainScaffold,
-          builder: (context, childWidget) {
+          builder: (_, childWidget) {
             final double progress = _drawerController.value;
             final bool isOpen = progress > 0.001;
 
@@ -417,6 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             );
                             if (result == true && mounted) {
                               await _applySystemUIFromPrefs();
+                              if (!mounted) return;
                               GlassyNotification.show(context, message: 'Home dashboard customized successfully!');
                               setState(() {
                                 _dashboardKeyCount++;
@@ -705,6 +689,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
       if (result == true && mounted) {
         await _applySystemUIFromPrefs();
+        if (!mounted) return;
         GlassyNotification.show(context, message: 'Home dashboard customized successfully!');
         setState(() => _dashboardKeyCount++);
       }
@@ -989,7 +974,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         return Transform(
           alignment: Alignment.center,
-          transform: Matrix4.identity()..scale(scaleX, scaleY),
+          transform: Matrix4.diagonal3Values(scaleX, scaleY, 1.0),
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFF047857),
@@ -1601,99 +1586,6 @@ class TabCutoutClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-/// Paints a rounded-top-only bar (flush bottom) with a smooth notch at [cx]
-/// and a soft upward shadow for separation from white backgrounds.
-class _NotchBarPainter extends CustomPainter {
-  final double cx;
-  final double wavePhase;
-  final Color color;
-  final Color borderColor;
-  final double barHeight;
-  const _NotchBarPainter({
-    required this.cx,
-    required this.wavePhase,
-    required this.color,
-    required this.borderColor,
-    required this.barHeight,
-  });
-
-  Path _buildPath(Size size) {
-    final double W = size.width;
-    final path = Path();
-    
-    // Base flat edge of the navbar
-    final double flatY = 15.0; 
-    
-    // Depth of the U-shaped notch. 
-    // Reduced depth slightly to make the bottom gap smaller.
-    final double notchBottom = flatY + (54.0 * (1 - wavePhase)); // 15 -> 69
-    
-    // Start drawing from left edge
-    path.moveTo(0, flatY);
-    
-    // Increased spread for a wider cutout
-    final double spread = 56.0; 
-    
-    // Draw flat line until the notch starts
-    path.lineTo(cx - spread, flatY);
-    
-    // Smooth, wide bowl-curve to wrap the circular icon with more gap on the sides
-    path.cubicTo(
-      cx - 36, flatY,        // Control Point 1: Pulls horizontally from edge, creating side gap
-      cx - 36, notchBottom,  // Control Point 2: Pulls down vertically, keeping the side gap wide
-      cx, notchBottom,       // Exact center bottom
-    );
-    
-    path.cubicTo(
-      cx + 36, notchBottom,  // Control Point 3: Pulls up symmetrically keeping right side wide
-      cx + 36, flatY,        // Control Point 4: Smooth transition back to flat
-      cx + spread, flatY,
-    );
-    
-    // Finish drawing to the right edge and bottom
-    path.lineTo(W, flatY);
-    path.lineTo(W, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildPath(size);
-    final bool isDark = color.computeLuminance() < 0.5;
-
-    // 1. Stylish shadow/glow for 3D depth
-    final shadowPaint = Paint()
-      ..color = isDark 
-          ? Colors.white.withValues(alpha: 0.15) 
-          : Colors.black.withValues(alpha: 0.25)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-      
-    canvas.drawPath(
-      path.shift(const Offset(0, -2)),
-      shadowPaint,
-    );
-
-    // 2. Main solid fill
-    canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
-
-    // 3. Crisp inner highlight (Glassmorphism top edge) for clear visibility
-    final highlightPaint = Paint()
-      ..color = isDark 
-          ? Colors.white.withValues(alpha: 0.15)
-          : Colors.black.withValues(alpha: 0.08)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-      
-    canvas.drawPath(path, highlightPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _NotchBarPainter old) =>
-      old.cx != cx || old.color != color || old.borderColor != borderColor;
-}
 
 // ── Old painter kept so nothing else breaks (not used) ─────────────────────
 class CurvedNavigationBarPainter extends CustomPainter {
@@ -1813,28 +1705,7 @@ class AnimatedGreetingsHeader extends StatefulWidget {
   State<AnimatedGreetingsHeader> createState() => _AnimatedGreetingsHeaderState();
 }
 
-class _AnimatedGreetingsHeaderState extends State<AnimatedGreetingsHeader> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
+class _AnimatedGreetingsHeaderState extends State<AnimatedGreetingsHeader> {
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {                  return BanglaLocalizations.of(context).greetingMorning;
@@ -2139,20 +2010,7 @@ class CurvedPanelPainter extends CustomPainter {
         oldDelegate.shadowOffset != shadowOffset ||
         oldDelegate.shadowColor != shadowColor;
   }
-}  // Note: This standalone function does not have access to BanglaLocalizations context.
-  // The greeting is handled in AnimatedGreetingsHeader which has context access.
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return 'Good morning';
-    } else if (hour >= 12 && hour < 17) {
-      return 'Good afternoon';
-    } else if (hour >= 17 && hour < 21) {
-      return 'Good evening';
-    } else {
-      return 'Good night';
-    }
-  }
+}
 
 class _LanguageTogglePill extends StatelessWidget {
   final String label;

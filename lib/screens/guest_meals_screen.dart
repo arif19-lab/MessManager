@@ -36,7 +36,6 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
 
     // Calculate guest cost at current meal rate
     final mealRate = provider.mealRate;
-    final totalGuestCost = totalGuestCount * mealRate;
 
     // Build list of members who have guest meals on this date — like Fried Fine only shows members with fines
     final memberIds = guestMealsForDate.map((g) => g.memberId).toSet();
@@ -107,7 +106,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
-                              '${bn.guestMealsTitle}',
+                              bn.guestMealsTitle,
                               style: TextStyle(
                                 color: isDark
                                     ? Colors.white
@@ -186,7 +185,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                                           size: 18),
                                       const SizedBox(width: 8),
                                       Text(
-                                        '${bn.addGuest}',
+                                        bn.addGuest,
                                         style: TextStyle(
                                           color: const Color(0xFF10B981),
                                           fontWeight: FontWeight.bold,
@@ -218,8 +217,8 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                             ),
                             child: Text(
                               totalGuestCount > 0
-                                  ? 'Total = $totalGuestCount'                                  : '${bn.noGuests}'
-                              ,
+                                  ? 'Total = $totalGuestCount'
+                                  : bn.noGuests,
                               style: TextStyle(
                                 color: totalGuestCount > 0
                                     ? const Color(0xFF0D9488)
@@ -305,7 +304,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                                     color: isDark ? Colors.grey[600] : Colors.grey[400]),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '${bn.noGuestMeals}',
+                                  bn.noGuestMeals,
                                   style: TextStyle(
                                     color: isDark ? Colors.grey[400] : Colors.grey[500],
                                     fontSize: 14,
@@ -314,7 +313,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${bn.clickAddGuest}',
+                                  bn.clickAddGuest,
                                   style: TextStyle(
                                     color: isDark ? Colors.grey[500] : Colors.grey[400],
                                     fontSize: 11,
@@ -381,14 +380,14 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                             Icon(Icons.person_add_alt_1,
                                 color: const Color(0xFF10B981), size: 18),
                             const SizedBox(width: 8),
-                                            Text(
-                            '${bn.addGuest}',
-                            style: TextStyle(
-                              color: const Color(0xFF10B981),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                            Text(
+                              bn.addGuest,
+                              style: const TextStyle(
+                                color: Color(0xFF10B981),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
                           ],
                         ),
                       ),
@@ -407,7 +406,6 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
     final guestCount =
         provider.getGuestMealCountForMember(member.id, dateString);
 
-    final bn = BanglaLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -632,7 +630,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).addGuestMeal}',
+                        BanglaLocalizations.of(context).addGuestMeal,
                         style: TextStyle(
                             color: isDark
                                 ? Colors.white
@@ -930,7 +928,7 @@ class _GuestMealsScreenState extends State<GuestMealsScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          '${BanglaLocalizations.of(context).selectDate}',
+                          BanglaLocalizations.of(context).selectDate,
                           style: TextStyle(
                             color: isDark
                                 ? Colors.white

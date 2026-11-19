@@ -90,7 +90,6 @@ class _ThemeTransitionWrapperState extends State<ThemeTransitionWrapper>
                 animation: _animation,
                 builder: (ctx, _) {
                   final size = MediaQuery.of(ctx).size;
-                  const origin = Offset(0, 0);
                   final maxRadius = math.sqrt(
                     size.width * size.width + size.height * size.height,
                   );

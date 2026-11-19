@@ -421,7 +421,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${bn.changeTime}',
+                    bn.changeTime,
                     style: TextStyle(
                       color: isDark ? Colors.grey[400] : const Color(0xFF475569),
                       fontSize: 12,

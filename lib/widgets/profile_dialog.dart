@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../providers/mess_provider.dart';
 import '../services/firebase_service.dart';
 import '../services/auth_mode_service.dart';
-import '../services/google_sign_in_desktop.dart';
 import '../screens/login_screen.dart';
 
 class ProfileDialog extends StatefulWidget {
@@ -238,8 +237,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
   }
 
   Widget _buildLogoutButton() {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
     final nav = Navigator.of(context);
     return InkWell(
       onTap: () async {

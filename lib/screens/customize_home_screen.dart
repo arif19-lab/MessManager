@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/glassy_notification.dart';
-import '../widgets/theme_transition_wrapper.dart';
 import '../l10n/bangla_localizations.dart';
 
 class CustomizeHomeScreen extends StatefulWidget {

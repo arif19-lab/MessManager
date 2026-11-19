@@ -2,11 +2,8 @@ import 'dart:ui';
 import '../providers/theme_provider.dart';
 import '../widgets/glass_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -14,7 +11,6 @@ import 'package:bangla_pdf_fixer/bangla_pdf_fixer.dart';
 import '../providers/mess_provider.dart';
 import '../models/mess_data.dart';
 import '../widgets/glassy_notification.dart';
-import 'package:file_saver/file_saver.dart';
 
 class SummaryScreen extends StatelessWidget {
   const SummaryScreen({super.key});
@@ -198,8 +194,6 @@ class SummaryScreen extends StatelessWidget {
     final isDesktop = MediaQuery.of(context).size.width > 600;
     
     Widget buildContent(BuildContext context, bool isDark, String currentSelectedId) {
-      final themeProvider = Provider.of<ThemeProvider>(context);
-      
       return Container(
         width: isDesktop ? 400 : double.infinity,
         margin: EdgeInsets.zero, // Removed margin so it sits completely flush on mobile
@@ -879,7 +873,7 @@ class SummaryScreen extends StatelessWidget {
                                           ),
                                         ],
                                       );
-                                    }).toList(),
+                                    }),
                                   ],
                                 );
                               }
@@ -895,7 +889,7 @@ class SummaryScreen extends StatelessWidget {
                                     columnSpacing: constraints.maxWidth > 600 ? (constraints.maxWidth / 7) : 20,
                                     columns: const [
                                       DataColumn(label: Padding(
-                                          padding: const EdgeInsets.only(left: 8),
+                                          padding: EdgeInsets.only(left: 8),
                                           child: Text('Member Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                         )),
                                       DataColumn(label: Text('Total Meals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
@@ -1196,7 +1190,7 @@ class SummaryScreen extends StatelessWidget {
                                     border: TableBorder.all(color: isDark ? Colors.white24 : Colors.black87, width: 1.5),
                                     columns: const [
                                       DataColumn(label: Padding(
-                                          padding: const EdgeInsets.only(left: 8),
+                                          padding: EdgeInsets.only(left: 8),
                                           child: Text('Member Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                         )),
                                       DataColumn(label: Text('Guest Meals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
@@ -1288,7 +1282,7 @@ class SummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, Color valueColor, {Color? bgColor}) {
+  Widget _buildStatCard(BuildContext context, String title, String value, Color valueColor) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     final themeProvider = Provider.of<ThemeProvider>(context);
     final accentColor = valueColor;
@@ -1661,7 +1655,7 @@ class SummaryScreen extends StatelessWidget {
                         _buildPdfCellWidget(balanceWidget),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
 

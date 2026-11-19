@@ -659,15 +659,15 @@ class MessProvider extends ChangeNotifier {
       }
       double paymentsCount = _payments
           .where((p) => p.memberId == member.id && (p.cycleId == currentCycleId))
-          .fold(0.0, (sum, item) => sum + item.amount);
+          .fold(0.0, (acc, item) => acc + item.amount);
           
       double finesCount = _friedFineItems
           .where((f) => f.memberId == member.id && (f.cycleId == currentCycleId))
-          .fold(0.0, (sum, item) => sum + item.amount);
+          .fold(0.0, (acc, item) => acc + item.amount);
 
       double guestMealsCount = _guestMealRecords
           .where((g) => g.memberId == member.id && (g.cycleId == currentCycleId))
-          .fold(0.0, (sum, item) => sum + (item.count).toDouble());
+          .fold(0.0, (acc, item) => acc + (item.count).toDouble());
           
       return member.copyWith(
         totalMeals: mealsCount, 
@@ -680,22 +680,22 @@ class MessProvider extends ChangeNotifier {
     // 2. Simple folds
     _cachedShopDue = _shopDueItems
         .where((s) => s.cycleId == currentCycleId)
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
 
     _cachedTotalExpenses = _expenses
         .where((e) => e.cycleId == currentCycleId)
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
 
     _cachedTotalPayments = _payments
         .where((p) => p.cycleId == currentCycleId)
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
 
     _cachedTotalFriedFine = _friedFineItems
         .where((item) => item.cycleId == currentCycleId)
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
 
     // 3. Dependent calculations
-    _cachedTotalMeals = _cachedMembers.fold(0.0, (sum, item) => sum + item.totalMeals);
+    _cachedTotalMeals = _cachedMembers.fold(0.0, (acc, item) => acc + item.totalMeals);
     _cachedMealRate = _cachedTotalMeals == 0 ? 0.0 : _cachedTotalExpenses / _cachedTotalMeals;
 
     // 4. Today calculations
@@ -764,7 +764,7 @@ class MessProvider extends ChangeNotifier {
     final String currentCycleId = _activeCycleId;
     return _expenses
         .where((e) => e.buyerId == memberId && (e.cycleId == currentCycleId))
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
   }
 
   // Get balance for specific member (Payments - Bill)
@@ -1061,7 +1061,7 @@ class MessProvider extends ChangeNotifier {
   void _syncMemberFriedFine(String memberId) {
     final total = _friedFineItems
         .where((item) => item.memberId == memberId && (item.cycleId == _activeCycleId))
-        .fold(0.0, (sum, item) => sum + item.amount);
+        .fold(0.0, (acc, item) => acc + item.amount);
     final memberIndex = _members.indexWhere((m) => m.id == memberId);
     if (memberIndex != -1) {
       _members[memberIndex] = _members[memberIndex].copyWith(friedFine: total);

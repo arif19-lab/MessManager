@@ -496,7 +496,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).addPaymentRecord}',
+                        BanglaLocalizations.of(context).addPaymentRecord,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -508,7 +508,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                '${BanglaLocalizations.of(context).selectMember2}',
+                                BanglaLocalizations.of(context).selectMember2,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -633,7 +633,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).editPayment}',
+                        BanglaLocalizations.of(context).editPayment,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -644,7 +644,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                '${BanglaLocalizations.of(context).selectMember2}',
+                                BanglaLocalizations.of(context).selectMember2,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -740,11 +740,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           ),
           title: Text(
-            '${BanglaLocalizations.of(context).deletePayment}',
+            BanglaLocalizations.of(context).deletePayment,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
-            '${BanglaLocalizations.of(context).paymentDeleteConfirm}',
+            BanglaLocalizations.of(context).paymentDeleteConfirm,
             style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           actions: [

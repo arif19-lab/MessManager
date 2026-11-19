@@ -765,7 +765,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).addExpenseItem}',
+                        BanglaLocalizations.of(context).addExpenseItem,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -885,7 +885,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).editExpense}',
+                        BanglaLocalizations.of(context).editExpense,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -982,7 +982,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               width: 1.5,
             ),
           ),
-          title: Text(                '${BanglaLocalizations.of(context).deleteExpense}',
+          title: Text(
+            BanglaLocalizations.of(context).deleteExpense,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
@@ -1049,7 +1050,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).addShopDueRecord}',
+                        BanglaLocalizations.of(context).addShopDueRecord,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -1063,7 +1064,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             const SizedBox(height: 16),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(                                 '${BanglaLocalizations.of(context).selectMember2}',
+                              child: Text(
+                                BanglaLocalizations.of(context).selectMember2,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -1168,7 +1170,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${BanglaLocalizations.of(context).editShopDue}',
+                        BanglaLocalizations.of(context).editShopDue,
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 16),
@@ -1182,7 +1184,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             const SizedBox(height: 16),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(                                 '${BanglaLocalizations.of(context).selectMember2}',
+                              child: Text(
+                                BanglaLocalizations.of(context).selectMember2,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -1264,7 +1267,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               width: 1.5,
             ),
           ),
-          title: Text(                '${BanglaLocalizations.of(context).deleteShopDue}',
+          title: Text(
+            BanglaLocalizations.of(context).deleteShopDue,
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Text(
