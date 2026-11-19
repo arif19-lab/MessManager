@@ -10,7 +10,7 @@ DefaultDirName={autopf}\Mess Manager
 DisableProgramGroupPage=yes
 ; Output directory where the final Setup.exe will be saved
 OutputDir=.\build\windows\installer
-OutputBaseFilename=MessManager_Setup_v1.0.13
+OutputBaseFilename=MessManager_Setup_v1.0.0+14
 SetupIconFile=.\windows\runner\resources\app_icon.ico
 Compression=lzma
 SolidCompression=yes
@@ -36,3 +36,4 @@ Name: "{autodesktop}\Mess Manager"; Filename: "{app}\mess_manager.exe"; Tasks: d
 
 [Run]
 Filename: "{app}\mess_manager.exe"; Description: "{cm:LaunchProgram,Mess Manager}"; Flags: nowait postinstall skipifsilent
+

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,6 @@ import '../providers/mess_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/mess_data.dart';
 import '../widgets/dashboard_card.dart';
-import '../widgets/clock_widget.dart';
 import '../widgets/drawer_widget.dart';
 import '../widgets/profile_dialog.dart';
 import '../widgets/theme_transition_wrapper.dart';
@@ -26,6 +26,8 @@ import 'customize_home_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 import 'summary_screen.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import '../widgets/modern_theme_icon.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -35,14 +37,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   double _lastCx = 0.0;
 
   int _dashboardKeyCount = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isSettingsPanelOpen = false;
-  bool _isDrawerOpen = false;
+  late final AnimationController _drawerController;
 
   // Desktop navbar sliding indicator measurement
   final GlobalKey _navTabsRowKey = GlobalKey();
@@ -76,6 +78,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 480),
     );
+    _drawerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+    );
     _applySystemUIFromPrefs();
   }
 
@@ -90,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void dispose() {
     // Restore edge-to-edge when leaving HomeScreen
+    _drawerController.dispose();
     _navMoltController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -230,149 +237,204 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
 
 
-    // Mobile Layout
-    double drawerWidth = (screenWidth * 0.85).clamp(0, 400).toDouble();
+    // Mobile Layout (Ultra-Smooth 120FPS Interactive Slide Shift)
+    final double drawerWidth = (screenWidth * 0.78).clamp(260.0, 320.0).toDouble();
+
+    // Cache main Scaffold so it is rebuilt 0 times during drawer animation
+    final Widget mainScaffold = Container(
+      color: themeProvider.resolveColor(
+        light: Theme.of(context).scaffoldBackgroundColor,
+        dark: Theme.of(context).scaffoldBackgroundColor,
+      ),
+      child: Scaffold(
+        key: _scaffoldKey,
+        extendBody: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(75.0 + MediaQuery.of(context).padding.top),
+          child: Container(
+            color: themeProvider.resolveColor(
+              light: Colors.white,
+              dark: const Color(0xFF0A0A0A),
+            ),
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.menu,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                      size: 28,
+                    ),
+                    onPressed: () => _drawerController.animateTo(1.0, curve: Curves.easeOutCubic),
+                  ),
+                  Consumer<MessProvider>(
+                    builder: (context, provider, _) {
+                      return GestureDetector(
+                        onTap: () => ProfileDialog.show(context),
+                        child: ProfileAvatar(
+                          radius: 20,
+                          customAvatarPath: provider.customAvatarPath,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final scaleAnimation = Tween<double>(begin: 0.96, end: 1.0).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ),
+            );
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: scaleAnimation,
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: _pages[_currentIndex],
+          ),
+        ), // Closes AnimatedSwitcher
+        bottomNavigationBar: _buildAnimatedNavBar(),
+      ), // Closes Scaffold
+    );
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (_isDrawerOpen) {
-          setState(() {
-            _isDrawerOpen = false;
-          });
+        if (_drawerController.value > 0.05) {
+          _drawerController.animateTo(0.0, curve: Curves.easeOutCubic);
         } else {
           SystemNavigator.pop();
         }
       },
-      child: Stack(
-        children: [
-          // Scaffold with main content
-          Container(
-            color: themeProvider.resolveColor(
-              light: Theme.of(context).scaffoldBackgroundColor,
-              dark: Theme.of(context).scaffoldBackgroundColor,
-            ),
-            child: Scaffold(
-              key: _scaffoldKey,
-              extendBody: true,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              appBar: PreferredSize(
-                preferredSize: Size.fromHeight(75.0 + MediaQuery.of(context).padding.top),
-                child: Container(
-                  color: themeProvider.resolveColor(
-                    light: Colors.white,
-                    dark: const Color(0xFF0A0A0A),
-                  ),
-                  padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.menu, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, size: 28),
-                            onPressed: () => setState(() => _isDrawerOpen = true),
-                          ),
-                          Consumer<MessProvider>(
-                            builder: (context, provider, _) {
-                              return GestureDetector(
-                                onTap: () => ProfileDialog.show(context),
-                                child: ProfileAvatar(
-                                  radius: 20,
-                                  customAvatarPath: provider.customAvatarPath,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                    ),
-                  ),
-                ),
-              ),
-              body: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final scaleAnimation = Tween<double>(begin: 0.96, end: 1.0).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  );
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: scaleAnimation,
-                      child: child,
-                    ),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey(_currentIndex),
-                  child: _pages[_currentIndex],
-                ),
-              ), // Closes AnimatedSwitcher
-              bottomNavigationBar: _buildAnimatedNavBar(),
-            ), // Closes Scaffold
-          ), // Closes Container
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: (details) {
+          final delta = details.primaryDelta ?? 0.0;
+          _drawerController.value += delta / drawerWidth;
+        },
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0.0;
+          // Ultra-snappy: any slight flick (>80 or <-80) immediately snaps open or closed!
+          if (velocity > 80) {
+            _drawerController.animateTo(1.0, curve: Curves.easeOutCubic);
+          } else if (velocity < -80) {
+            _drawerController.animateTo(0.0, curve: Curves.easeOutCubic);
+          } else {
+            // Slight touch drag > 14% opens immediately, otherwise closes
+            if (_drawerController.value > 0.14) {
+              _drawerController.animateTo(1.0, curve: Curves.easeOutCubic);
+            } else {
+              _drawerController.animateTo(0.0, curve: Curves.easeOutCubic);
+            }
+          }
+        },
+        child: AnimatedBuilder(
+          animation: _drawerController,
+          child: mainScaffold,
+          builder: (context, childWidget) {
+            final double progress = _drawerController.value;
+            final bool isOpen = progress > 0.001;
 
-          // Scrim overlay background
-          if (_isDrawerOpen)
-            GestureDetector(
-              onTap: () => setState(() => _isDrawerOpen = false),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0.0, end: 0.65),
-                duration: const Duration(milliseconds: 400),
-                builder: (context, opacity, child) {
-                  return Container(
-                    color: Colors.black.withOpacity(opacity),
-                  );
-                },
-              ),
-            ),
+            return Stack(
+              children: [
+                // 1. Main Screen - Kept static in place so drawer BackdropFilter blurs it directly!
+                childWidget!,
 
-          // Sliding drawer panel widget
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutQuart,
-            left: _isDrawerOpen ? 0 : -(drawerWidth + 50),
-            top: 0,
-            bottom: 0,
-            width: drawerWidth,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutQuart,
-              opacity: _isDrawerOpen ? 1.0 : 0.0,
-              child: DrawerWidget(
-                activeIndex: _currentIndex,
-                onClose: () => setState(() => _isDrawerOpen = false),
-                onItemTapped: (index) async {
-                  setState(() {
-                    _isDrawerOpen = false;
-                  });
-                  if (index == 9) {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CustomizeHomeScreen()),
-                    );
-                    if (result == true && mounted) {
-                      await _applySystemUIFromPrefs();
-                      GlassyNotification.show(context, message: 'Home dashboard customized successfully!');
-                      setState(() {
-                        _dashboardKeyCount++;
-                      });
-                    }
-                  } else {
-                    if (index < _pages.length) {
-                      _onTabChanged(index);
-                    }
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
+                // 2. Dim Scrim + Live Frosted Blur Overlay strictly outside the drawer panel
+                if (isOpen)
+                  Positioned(
+                    left: drawerWidth * progress,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _drawerController.animateTo(0.0, curve: Curves.easeOutCubic),
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: 14.0 * progress,
+                            sigmaY: 14.0 * progress,
+                          ),
+                          child: Container(
+                            color: Colors.black.withValues(
+                              alpha: (isDark ? 0.45 : 0.22) * progress,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // 3. Sliding Frosted Glass Drawer Panel (Overlays directly on top of screen with live direct blur)
+                if (isOpen)
+                  Positioned(
+                    left: -drawerWidth * (1.0 - progress),
+                    top: 0,
+                    bottom: 0,
+                    width: drawerWidth,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragUpdate: (details) {
+                        final delta = details.primaryDelta ?? 0.0;
+                        _drawerController.value += delta / drawerWidth;
+                      },
+                      onHorizontalDragEnd: (details) {
+                        final velocity = details.primaryVelocity ?? 0.0;
+                        if (velocity < -80 || _drawerController.value < 0.86) {
+                          _drawerController.animateTo(0.0, curve: Curves.easeOutCubic);
+                        } else {
+                          _drawerController.animateTo(1.0, curve: Curves.easeOutCubic);
+                        }
+                      },
+                      child: DrawerWidget(
+                        activeIndex: _currentIndex,
+                        onClose: () => _drawerController.animateTo(0.0, curve: Curves.easeOutCubic),
+                        onItemTapped: (index) async {
+                          _drawerController.animateTo(0.0, curve: Curves.easeOutCubic);
+                          if (index == 9) {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const CustomizeHomeScreen()),
+                            );
+                            if (result == true && mounted) {
+                              await _applySystemUIFromPrefs();
+                              GlassyNotification.show(context, message: 'Home dashboard customized successfully!');
+                              setState(() {
+                                _dashboardKeyCount++;
+                              });
+                            }
+                          } else {
+                            if (index < _pages.length) {
+                              _onTabChanged(index);
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -393,7 +455,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return 8; // Mobile Settings
   }
 
-
   // Labels updated dynamically in _buildAnimatedNavBar via BanglaLocalizations
   static const List<_NavItemData> _navItems = [
     _NavItemData('Home',     Icons.grid_view_rounded,       'assets/icons/dashboard.png'),
@@ -403,168 +464,99 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   ];
 
   Widget _buildAnimatedNavBar() {
+    final bn = BanglaLocalizations.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
-    bool isDark = themeProvider.isDarkMode;
+    final isDark = themeProvider.isDarkMode;
 
-    // Design constants
-    final Color barColor      = isDark ? const Color(0xFF0A0A0A) : Colors.white;
-    const Color circleColor   = Color(0xFFFF8C42); // Orange active
-    final Color inactiveColor = isDark ? Colors.grey[400]! : const Color(0xFF64748B); // Darker grey for contrast on white
-    const double circleSize   = 56.0;
-    
-    final double systemPadding = MediaQuery.of(context).padding.bottom;
-    final double bottomPadding = systemPadding > 0 ? systemPadding : 16.0;
-    const double barHeight    = 78.0; 
-    const double overhang     = 0.0;
-    final double totalHeight  = barHeight + overhang + bottomPadding;
-
-    return Container(
-      color: Colors.transparent,
-      margin: EdgeInsets.zero,
-      height: totalHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double width    = constraints.maxWidth;
-          final double tabWidth = width / _navItems.length;
-          final double targetCx = tabWidth * _navIndex + tabWidth / 2;
-
-          if (_lastCx == 0.0) _lastCx = targetCx;
-
-          return TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: _lastCx, end: targetCx),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeInOutSine,
-            onEnd: () { _lastCx = targetCx; },
-            builder: (context, cx, _) {
-              final double totalDistance = (targetCx - _lastCx).abs();
-              double wavePhase = 0.0;
-              if (totalDistance > 0) {
-                final double progress = (cx - _lastCx).abs() / totalDistance;
-                wavePhase = math.sin(progress * math.pi).clamp(0.0, 1.0);
-              }
-              
-              // Icon vertical animation: floats on the hill when settled, drops slightly when moving
-              final double iconTop = 10.0 + (15.0 * wavePhase);
-
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    top: overhang,
-                    left: 0, right: 0,
-                    child: CustomPaint(
-                      size: Size(width, barHeight + bottomPadding),
-                      painter: _NotchBarPainter(
-                        cx: cx,
-                        wavePhase: wavePhase,
-                        color: barColor,
-                        borderColor: isDark
-                            ? Colors.white.withValues(alpha: 0.4)
-                            : const Color(0xFF0F172A).withValues(alpha: 0.4),
-                        barHeight: barHeight,
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    left: cx - circleSize / 2,
-                    top: iconTop,
-                    child: GestureDetector(
-                      onTap: () {
-                        final rootIndex = _pageIndex(_navIndex);
-                        if (_currentIndex != rootIndex) {
-                          _onTabChanged(rootIndex);
-                        }
-                      },
-                      child: Container(
-                        width: circleSize,
-                        height: circleSize,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFA057), Color(0xFFFF7A22)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 400),
-                            transitionBuilder: (child, animation) {
-                              final curved = CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutBack,
-                              );
-                              return ScaleTransition(
-                                scale: curved, 
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Container(
-                              key: ValueKey(_navIndex),
-                              child: _buildNavIcon(_navIndex, active: true),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    top: overhang,
-                    left: 0, right: 0,
-                    height: barHeight,
-                    child: Row(
-                      children: List.generate(_navItems.length, (i) {
-                        final isActive = _navIndex == i;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => _onTabChanged(_pageIndex(i)),
-                            behavior: HitTestBehavior.opaque,
-                            child: isActive
-                                ? const SizedBox.shrink()
-                                : Padding(
-                                    padding: const EdgeInsets.only(top: 26.0, bottom: 4.0),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        _buildNavIcon(i, active: false),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _navItems[i].label,
-                                          style: TextStyle(
-                                            color: inactiveColor,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
+    return GlassTabBar.bottom(
+      quality: GlassQuality.standard,
+      selectedIndex: (_navIndex >= 0 && _navIndex < 3) ? _navIndex : 0,
+      showIndicator: _navIndex < 3,
+      onTabSelected: (index) {
+        _onTabChanged(_pageIndex(index));
+      },
+      indicatorPinchStrength: 1.15,
+      glowDuration: const Duration(milliseconds: 500),
+      magnification: 1.25,
+      innerBlur: 2.0,
+      pressScale: 1.06,
+      indicatorExpansion: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
+        glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
+        thickness: 34,
+        blur: 26,
+        frost: 18,
+        frostOpacity: isDark ? 0.90 : 0.82,
+        refractiveIndex: 1.26,
+        chromaticAberration: 0.05,
+        rimLight: isDark ? 1.50 : 1.25,
+        rimShade: isDark ? 0.95 : 0.50,
+        rimShadeEnds: 0.5,
+        edgeAbsorption: 0.035,
+        shadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.16),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: isDark ? const Color(0x30FFFFFF) : const Color(0x70FFFFFF),
+            blurRadius: 1.5,
+            offset: const Offset(0, -1),
+          ),
+        ],
+      ),
+      indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
+        thickness: 36,
+        refractiveIndex: 1.26,
+        chromaticAberration: 0.05,
+        rimLight: 1.5,
+        rimShade: 1.1,
+      ),
+      selectedIconColor: const Color(0xFFFF8C42),
+      unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+      selectedLabelColor: const Color(0xFFFF8C42),
+      unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.2),
+      tabs: [
+        GlassTab(
+          icon: _buildNavIcon(0, active: false),
+          activeIcon: _buildNavIcon(0, active: true),
+          label: bn.navHome,
+        ),
+        GlassTab(
+          icon: _buildNavIcon(1, active: false),
+          activeIcon: _buildNavIcon(1, active: true),
+          label: bn.navMeals,
+        ),
+        GlassTab(
+          icon: _buildNavIcon(2, active: false),
+          activeIcon: _buildNavIcon(2, active: true),
+          label: bn.navPeople,
+        ),
+      ],
+      extraButton: GlassTabBarExtraButton(
+        icon: RepaintBoundary(
+          child: ModernThemeIcon(
+            isDark: isDark,
+            size: 26,
+          ),
+        ),
+        label: isDark
+            ? (bn.isBangla ? 'লাইট' : 'Light')
+            : (bn.isBangla ? 'ডার্ক' : 'Dark'),
+        placement: GlassExtraButtonPlacement.right,
+        onTap: () {
+          _triggerThemeTransition(context, themeProvider, !isDark);
         },
       ),
     );
   }
 
   Widget _buildNavIcon(int navPos, {required bool active}) {
-    const double sz = 26.0;
-    final Color color = active ? Colors.white : const Color(0xFF8E8EA0);
+    const double sz = 24.0;
+    final Color color = active ? const Color(0xFFFF8C42) : const Color(0xFF8E8EA0);
     final item = _navItems[navPos];
     if (item.assetPath != null) {
       return Image.asset(item.assetPath!, width: sz, height: sz, color: color);
@@ -1275,8 +1267,9 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
       }
     }
 
-    final double hPadding = isDesktop ? 32.0 : (screenWidth * 0.05).clamp(12.0, 32.0);
-    final double topPadding = isDesktop ? 100.0 : 24.0; // Clear the 85px cutout
+    final double hPadding = isDesktop ? 20.0 : 3.5;
+    final double topPadding = isDesktop ? 100.0 : 20.0; // Clear the 85px cutout
+    final topBar = _buildTopBar(context, screenWidth, isDesktop);
 
     return Scaffold(
       backgroundColor: Colors.transparent, // Blends into the parent beige panel
@@ -1285,21 +1278,20 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top App Bar Greeting & Stats
-            _buildTopBar(context, screenWidth, isDesktop),
-            const SizedBox(height: 24),
+            if (topBar != null) ...[
+              topBar,
+              const SizedBox(height: 24),
+            ],
 
-            // Responsive Grid of 9 Cards
+            // Responsive Grid of 9 Cards (Optimized tighter gap for larger HUD cards)
             GridView.count(
               crossAxisCount: crossAxisCount,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 18,
-              mainAxisSpacing: 18,
+              crossAxisSpacing: isDesktop ? 16 : 8,
+              mainAxisSpacing: isDesktop ? 16 : 8,
               childAspectRatio: childAspectRatio,
-              children: _buildCards(provider)
-                  .map((card) => RepaintBoundary(child: card))
-                  .toList(),
+              children: _buildCards(provider),
             ),
           ],
         ),
@@ -1307,36 +1299,26 @@ class _HomeDashboardViewState extends State<HomeDashboardView> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context, double screenWidth, bool isDesktop) {
+  Widget? _buildTopBar(BuildContext context, double screenWidth, bool isDesktop) {
     if (isDesktop) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Transform.scale(
-            scale: 0.9,
-            alignment: Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 330),
-              child: const ClockWidget(isDesktop: false),
-            ),
-          ),
-          Consumer<MessProvider>(
-            builder: (context, provider, _) {
-              return GestureDetector(
-                onTap: () {
-                  ProfileDialog.show(context);
-                },
-                child: ProfileAvatar(
-                  radius: 18,
-                  customAvatarPath: provider.customAvatarPath,
-                ),
-              );
-            },
-          ),
-        ],
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Consumer<MessProvider>(
+          builder: (context, provider, _) {
+            return GestureDetector(
+              onTap: () {
+                ProfileDialog.show(context);
+              },
+              child: ProfileAvatar(
+                radius: 18,
+                customAvatarPath: provider.customAvatarPath,
+              ),
+            );
+          },
+        ),
       );
     }
-    return const ClockWidget(isDesktop: false);
+    return null;
   }
 
   List<Widget> _buildCards(MessProvider provider) {

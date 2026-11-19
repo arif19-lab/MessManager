@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -27,24 +28,8 @@ class DashboardCard extends StatefulWidget {
   State<DashboardCard> createState() => _DashboardCardState();
 }
 
-class _DashboardCardState extends State<DashboardCard> with SingleTickerProviderStateMixin {
+class _DashboardCardState extends State<DashboardCard> {
   bool _isHovered = false;
-  late AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,145 +45,121 @@ class _DashboardCardState extends State<DashboardCard> with SingleTickerProvider
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         transform: _isHovered
-            ? Matrix4.translationValues(0.0, -8.0, 0.0) // Lift up even more on hover
+            ? Matrix4.translationValues(0.0, -6.0, 0.0)
             : Matrix4.translationValues(0.0, 0.0, 0.0),
         decoration: BoxDecoration(
-          color: themeProvider.resolveColor(
-            light: Colors.white,
-            dark: const Color(0xFF0A0A0A),
-
-          ),
-          borderRadius: BorderRadius.circular(20.0), // Rounded matching mockup
-          border: Border.all(
-            color: const Color(0xFF0080FF),
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(22.0),
           boxShadow: [
-            // Solid, flat offset shadow with 0 blur matching modern Flat 2.0 / Neo-Brutalist style
+            // Ambient Web-style Glassmorphism Elevation
             BoxShadow(
-                color: isDark ? Colors.black.withValues(alpha: 0.4) : const Color(0xFF0F172A).withValues(alpha: 0.12),
-                offset: Offset(0, _isHovered ? 6 : 4),
-                blurRadius: 0,
-              ),
+              color: isDark
+                  ? Colors.black.withValues(alpha: _isHovered ? 0.45 : 0.25)
+                  : const Color(0xFF0F172A).withValues(alpha: _isHovered ? 0.12 : 0.07),
+              blurRadius: _isHovered ? 24 : 16,
+              offset: Offset(0, _isHovered ? 8 : 5),
+            ),
           ],
         ),
+        // ── Single Unified Seamless Glass HUD Architecture ──
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20.0),
-          child: Stack(
-            children: [
-              // Large artistic background watermark icon to fill space elegantly
-              // Small artistic rounded container icon at bottom right
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Container(
-                    width: isDesktop ? 40.0 : 35.0,
-                    height: isDesktop ? 40.0 : 35.0,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xFF0080FF),
-                        width: 1.5,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12.0),
-                      ),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: isDesktop ? 26.0 : 22.0,
-                        height: isDesktop ? 26.0 : 22.0,
-                        child: AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter: WavePainter(
-                                animationValue: _pulseController.value,
-                                color: widget.accentColor,
-                                isDark: isDark,
-                              ),
-                            );
-                          },
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20.0),
+                color: isDark
+                    ? const Color(0x18FFFFFF)
+                    : Colors.white.withValues(alpha: 0.90),
+                border: Border.all(
+                  color: isDark
+                      ? (_isHovered
+                          ? widget.accentColor.withValues(alpha: 0.85)
+                          : const Color(0x35FFFFFF))
+                      : (_isHovered
+                          ? widget.accentColor
+                          : const Color(0x2E000000)),
+                  width: 1.2,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: Icon on left, Progress Ring on right
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Icon wrapper with glossy glass treatment
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: widget.accentColor.withValues(alpha: isDark ? 0.85 : 0.90),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: isDark ? 0.3 : 0.6),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.accentColor.withValues(alpha: 0.40),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
+                        child: widget.iconAssetPath != null
+                            ? Image.asset(
+                                widget.iconAssetPath!,
+                                width: 18,
+                                height: 18,
+                                color: Colors.white,
+                              )
+                            : Icon(
+                                widget.icon,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                       ),
+                      // Circular progress ring
+                      if (widget.progressValue >= 0.0)
+                        NeumorphicCircularProgress(
+                          progress: widget.progressValue,
+                          progressLabel: widget.progressLabel,
+                          accentColor: widget.accentColor,
+                          useGradient: false,
+                          size: 32,
+                        ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Title text
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      widget.title.toUpperCase(),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 9.5,
+                        letterSpacing: 1.1,
+                      ),
+                      maxLines: 1,
                     ),
                   ),
-                ),
-              ),
-              // Main card content
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Row: Icon on left, Progress Ring on right
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Icon wrapper (Rounded outline matching modern Flat 2.0 style)
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: widget.accentColor.withValues(alpha: isDark ? 0.85 : 0.90),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: widget.accentColor,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: widget.iconAssetPath != null
-                              ? Image.asset(
-                                  widget.iconAssetPath!,
-                                  width: 18,
-                                  height: 18,
-                                  color: Colors.white,
-                                )
-                              : Icon(
-                                  widget.icon,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                        ),
-                        // Neumorphic circular progress ring
-                        if (widget.progressValue >= 0.0)
-                          NeumorphicCircularProgress(
-                            progress: widget.progressValue,
-                            progressLabel: widget.progressLabel,
-                            accentColor: widget.accentColor,
-                            useGradient: false,
-                            size: 32,
-                          ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Title text (small, bold, uppercase with letter-spacing for premium feel)
-                    FittedBox(
+                  SizedBox(height: gapHeight),
+                  // Value content
+                  Expanded(
+                    child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        widget.title.toUpperCase(),
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 9.5,
-                          letterSpacing: 1.1,
-                        ),
-                        maxLines: 1,
-                      ),
+                      child: widget.content,
                     ),
-                    SizedBox(height: gapHeight),
-                    // Value content
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: widget.content,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -236,7 +197,7 @@ class NeumorphicCircularProgress extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Inner circular track (sunken neumorphic look)
+          // Inner circular track (translucent glass look)
           Container(
             width: size,
             height: size,
@@ -244,9 +205,9 @@ class NeumorphicCircularProgress extends StatelessWidget {
               shape: BoxShape.circle,
               color: useGradient 
                   ? Colors.white.withValues(alpha: 0.15) 
-                  : (isDark ? const Color(0xFF0A0F1D) : const Color(0xFFE2E8F0)),
+                  : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF0F172A),
+                color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
                 width: 1.0,
               ),
             ),
@@ -449,118 +410,6 @@ class ActiveMembersBox extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class WavePainter extends CustomPainter {
-  final double animationValue;
-  final Color color;
-  final bool isDark;
-
-  WavePainter({
-    required this.animationValue,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double midY = size.height / 2;
-    final double width = size.width;
-
-    // Paint a single flowing wave (solid/neon)
-    final fgPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-
-    final fgPath = Path();
-    fgPath.moveTo(0, midY);
-    for (double x = 0; x <= width; x++) {
-      final double relativeX = x / width;
-      final double y = midY + 
-          math.sin((relativeX * 2.0 * math.pi) + (animationValue * 2 * math.pi)) * 4.5;
-      if (x == 0) {
-        fgPath.moveTo(x, y);
-      } else {
-        fgPath.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(fgPath, fgPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant WavePainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.color != color ||
-        oldDelegate.isDark != isDark;
-  }
-}
-
-class LiquidWavePainter extends CustomPainter {
-  final double animationValue;
-  final double progressValue;
-  final Color color;
-  final bool isDark;
-
-  LiquidWavePainter({
-    required this.animationValue,
-    required this.progressValue,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double pct = progressValue < 0.0 ? 0.5 : progressValue.clamp(0.15, 1.0);
-    final double width = size.width;
-    final double height = size.height;
-    final double targetY = height * (1.0 - pct);
-
-    // 1. Draw background liquid wave (lighter opacity)
-    final bgPaint = Paint()
-      ..color = color.withValues(alpha: 0.25)
-      ..style = PaintingStyle.fill;
-
-    final bgPath = Path();
-    bgPath.moveTo(0, height);
-    bgPath.lineTo(0, targetY);
-    for (double x = 0; x <= width; x++) {
-      final double relativeX = x / width;
-      final double y = targetY + 
-          math.sin((relativeX * 2.5 * math.pi) - (animationValue * 2 * math.pi)) * 2.2;
-      bgPath.lineTo(x, y);
-    }
-    bgPath.lineTo(width, height);
-    bgPath.close();
-    canvas.drawPath(bgPath, bgPaint);
-
-    // 2. Draw foreground liquid wave (darker/solid opacity)
-    final fgPaint = Paint()
-      ..color = color.withValues(alpha: 0.55)
-      ..style = PaintingStyle.fill;
-
-    final fgPath = Path();
-    fgPath.moveTo(0, height);
-    fgPath.lineTo(0, targetY);
-    for (double x = 0; x <= width; x++) {
-      final double relativeX = x / width;
-      final double y = targetY + 
-          math.sin((relativeX * 2.0 * math.pi) + (animationValue * 2 * math.pi)) * 2.8;
-      fgPath.lineTo(x, y);
-    }
-    fgPath.lineTo(width, height);
-    fgPath.close();
-    canvas.drawPath(fgPath, fgPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant LiquidWavePainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.progressValue != progressValue ||
-        oldDelegate.color != color ||
-        oldDelegate.isDark != isDark;
   }
 }
 

@@ -15,10 +15,12 @@ import 'firebase_options.dart';
 import 'widgets/theme_transition_wrapper.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/bangla_localizations.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
 
   try {
     await Firebase.initializeApp(
@@ -34,15 +36,19 @@ void main() async {
   }
 
   runApp(
-    DevicePreview(
-      enabled: !kReleaseMode, // Set to true to enable device preview
-      builder: (context) => MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => MessProvider()),
-          ChangeNotifierProvider(create: (_) => ThemeProvider()),
-          ChangeNotifierProvider(create: (_) => LanguageProvider()),
-        ],
-        child: const MessManagerApp(),
+    LiquidGlassWidgets.wrap(
+      brightnessResolver: Theme.maybeBrightnessOf,
+      theme: const GlassThemeData.ios27(),
+      child: DevicePreview(
+        enabled: false, // Set to true to enable device preview
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => MessProvider()),
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider(create: (_) => LanguageProvider()),
+          ],
+          child: const MessManagerApp(),
+        ),
       ),
     ),
   );
@@ -135,15 +141,15 @@ class MessManagerApp extends StatelessWidget {
       brightness: Brightness.dark,
       primarySwatch: Colors.teal,
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-      scaffoldBackgroundColor: Colors.black,
-      cardColor: const Color(0xFF0A0A0A),
-      canvasColor: const Color(0xFF0A0A0A),
+      scaffoldBackgroundColor: const Color(0xFF090D14),
+      cardColor: const Color(0xFF111827),
+      canvasColor: const Color(0xFF090D14),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0A0A0A),
+        backgroundColor: Color(0xFF090D14),
         foregroundColor: Colors.white,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF0A0A0A),
+        backgroundColor: Color(0xFF090D14),
         selectedItemColor: Color(0xFF2DD4BF),
         unselectedItemColor: Colors.grey,
       ),

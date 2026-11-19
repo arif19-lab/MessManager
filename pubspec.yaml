@@ -1,7 +1,7 @@
 name: mess_manager
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.0+13
+version: 1.0.0+14
 
 environment:
   sdk: ^3.12.2
@@ -38,6 +38,7 @@ dependencies:
   printing: ^5.15.0
   bangla_pdf_fixer: ^2.0.0
   file_saver: ^0.4.0
+  liquid_glass_widgets: ^1.18.0
 
 dev_dependencies:
   flutter_test:
@@ -71,3 +72,4 @@ flutter_launcher_icons:
     image_path: "assets/app_icon.jpg"
     background_color: "#0F172A"
     theme_color: "#0F172A"
+
