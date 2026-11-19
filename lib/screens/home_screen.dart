@@ -44,38 +44,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isSettingsPanelOpen = false;
   late final AnimationController _drawerController;
 
-  // Desktop navbar sliding indicator measurement
-  final GlobalKey _navTabsRowKey = GlobalKey();
-  final List<GlobalKey> _navTabKeys = List.generate(6, (_) => GlobalKey());
-  double? _navIndicatorLeft;
-  double? _navIndicatorWidth;
-
-  // Snake-molt animation for the sliding indicator (shine sweep + squash-stretch)
-  late final AnimationController _navMoltController;
-
-  void _updateNavIndicator() {
-    final rowBox = _navTabsRowKey.currentContext?.findRenderObject() as RenderBox?;
-    if (rowBox == null || !rowBox.hasSize) return;
-    if (_currentIndex < 0 || _currentIndex >= _navTabKeys.length) return;
-    final tabBox = _navTabKeys[_currentIndex].currentContext?.findRenderObject() as RenderBox?;
-    if (tabBox == null || !tabBox.hasSize) return;
-    final double left = tabBox.localToGlobal(Offset.zero, ancestor: rowBox).dx;
-    final double width = tabBox.size.width;
-    if (_navIndicatorLeft != left || _navIndicatorWidth != width) {
-      setState(() {
-        _navIndicatorLeft = left;
-        _navIndicatorWidth = width;
-      });
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    _navMoltController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 480),
-    );
     _drawerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 160),
@@ -95,22 +66,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     // Restore edge-to-edge when leaving HomeScreen
     _drawerController.dispose();
-    _navMoltController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
   void _onTabChanged(int index) {
-    // Trigger the snake-molt effect only when moving between the 6 main tabs
-    final bool moltable = index != _currentIndex &&
-        index >= 0 && index < 6 &&
-        _currentIndex >= 0 && _currentIndex < 6;
     setState(() {
       _currentIndex = index;
     });
-    if (moltable) {
-      _navMoltController.forward(from: 0.0);
-    }
   }
 
   List<Widget> get _pages => [
@@ -549,154 +512,142 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTopPillTabs(BuildContext context) {
+    final bn = BanglaLocalizations.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final bool isDark = themeProvider.isDarkMode;
-    double screenWidth = MediaQuery.of(context).size.width;
-    bool isSmallDesktop = screenWidth < 1200;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double tabWidth = screenWidth < 1100 ? 80.0 : (screenWidth < 1300 ? 88.0 : 96.0);
+    const double extraBtnSize = 58.0;
+    const double spacing = 10.0;
+    final double totalWidth = (tabWidth * 6) + spacing + extraBtnSize;
 
-    const double tabSpacing = 6.0;
-
-    // Measure the active tab after each layout so the indicator matches its
-    // real (natural) size and position, regardless of label length.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateNavIndicator());
-
-    const int tabCount = 6;
-    final bool indicatorVisible = _currentIndex >= 0 && _currentIndex < tabCount;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(40),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.8),
-              width: 1.2,
+    return SizedBox(
+      width: totalWidth,
+      height: 58.0,
+      child: GlassTabBar.bottom(
+        quality: GlassQuality.standard,
+        selectedIndex: (_currentIndex >= 0 && _currentIndex < 6) ? _currentIndex : 0,
+        showIndicator: _currentIndex < 6,
+        onTabSelected: (index) {
+          _onTabChanged(index);
+        },
+        spacing: spacing,
+        horizontalPadding: 0,
+        verticalPadding: 0,
+        barHeight: 58,
+        tabWidth: tabWidth,
+        indicatorPinchStrength: 1.15,
+        glowDuration: const Duration(milliseconds: 500),
+        magnification: 1.25,
+        innerBlur: 2.0,
+        pressScale: 1.06,
+        indicatorExpansion: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
+          glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
+          thickness: 34,
+          blur: 26,
+          frost: 18,
+          frostOpacity: isDark ? 0.90 : 0.82,
+          refractiveIndex: 1.26,
+          chromaticAberration: 0.05,
+          rimLight: isDark ? 1.50 : 1.25,
+          rimShade: isDark ? 0.95 : 0.50,
+          rimShadeEnds: 0.5,
+          edgeAbsorption: 0.035,
+          shadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.16),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: isDark ? const Color(0x25FFFFFF) : const Color(0x80FFFFFF),
-                blurRadius: 1.5,
-                offset: const Offset(0, -1),
-              ),
-            ],
+            BoxShadow(
+              color: isDark ? const Color(0x30FFFFFF) : const Color(0x70FFFFFF),
+              blurRadius: 1.5,
+              offset: const Offset(0, -1),
+            ),
+          ],
+        ),
+        indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
+          thickness: 36,
+          refractiveIndex: 1.26,
+          chromaticAberration: 0.05,
+          rimLight: 1.5,
+          rimShade: 1.1,
+        ),
+        selectedIconColor: const Color(0xFFFF8C42),
+        unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        selectedLabelColor: const Color(0xFFFF8C42),
+        unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.2, fontSize: 11),
+        tabs: [
+          GlassTab(
+            icon: _buildDesktopNavIcon(0, Icons.grid_view_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(0, Icons.grid_view_rounded, active: true),
+            label: bn.tabDashboard,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Tab buttons with an amber glowing pill that glides between them ──
-              Stack(
-                children: [
-                  // The sliding indicator (sits behind the tabs)
-                  if (_navIndicatorLeft != null && _navIndicatorWidth != null)
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 360),
-                      curve: Curves.easeOutCubic,
-                      left: _navIndicatorLeft!,
-                      top: 0,
-                      bottom: 0,
-                      width: _navIndicatorWidth!,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 200),
-                        opacity: indicatorVisible ? 1.0 : 0.0,
-                        child: _buildMoltPill(),
-                      ),
-                    ),
-                  // The tab buttons on top of the indicator
-                  Row(
-                    key: _navTabsRowKey,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildFixedTab(0, Icons.grid_view_rounded, BanglaLocalizations.of(context).tabDashboard, showLabel: !isSmallDesktop, tabKey: _navTabKeys[0]),
-                      const SizedBox(width: tabSpacing),
-                      _buildFixedTab(1, Icons.restaurant_menu_rounded, BanglaLocalizations.of(context).tabMeals, showLabel: !isSmallDesktop, tabKey: _navTabKeys[1]),
-                      const SizedBox(width: tabSpacing),
-                      _buildFixedTab(2, Icons.people_alt_rounded, BanglaLocalizations.of(context).tabPeople, showLabel: !isSmallDesktop, tabKey: _navTabKeys[2]),
-                      const SizedBox(width: tabSpacing),
-                      _buildFixedTab(3, Icons.shopping_bag_rounded, BanglaLocalizations.of(context).tabExpenses, showLabel: !isSmallDesktop, tabKey: _navTabKeys[3]),
-                      const SizedBox(width: tabSpacing),
-                      _buildFixedTab(4, Icons.credit_card_rounded, BanglaLocalizations.of(context).tabPayments, showLabel: !isSmallDesktop, tabKey: _navTabKeys[4]),
-                      const SizedBox(width: tabSpacing),
-                      _buildFixedTab(5, Icons.gavel_rounded, BanglaLocalizations.of(context).tabFeastFines, showLabel: !isSmallDesktop, tabKey: _navTabKeys[5]),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              // Glass vertical separator
-              Container(
-                width: 1.2,
-                height: 24,
-                color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
-              ),
-              const SizedBox(width: 8),
-              // Settings Dropdown
-              _buildSettingsDropdown(),
-              const SizedBox(width: 6),
-              // Modern 3D Theme Switch (Matching Mobile Navbar)
-              _buildDesktopThemeToggle(),
-            ],
+          GlassTab(
+            icon: _buildDesktopNavIcon(1, Icons.restaurant_menu_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(1, Icons.restaurant_menu_rounded, active: true),
+            label: bn.tabMeals,
           ),
+          GlassTab(
+            icon: _buildDesktopNavIcon(2, Icons.people_alt_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(2, Icons.people_alt_rounded, active: true),
+            label: bn.tabPeople,
+          ),
+          GlassTab(
+            icon: _buildDesktopNavIcon(3, Icons.shopping_bag_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(3, Icons.shopping_bag_rounded, active: true),
+            label: bn.tabExpenses,
+          ),
+          GlassTab(
+            icon: _buildDesktopNavIcon(4, Icons.credit_card_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(4, Icons.credit_card_rounded, active: true),
+            label: bn.tabPayments,
+          ),
+          GlassTab(
+            icon: _buildDesktopNavIcon(5, Icons.gavel_rounded, active: false),
+            activeIcon: _buildDesktopNavIcon(5, Icons.gavel_rounded, active: true),
+            label: bn.tabFeastFines,
+          ),
+        ],
+        extraButton: GlassTabBarExtraButton(
+          icon: Icon(
+            Icons.settings_rounded,
+            size: 24,
+            color: (_currentIndex >= 6 || _isSettingsPanelOpen)
+                ? const Color(0xFFFF8C42)
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
+          label: bn.navSettings,
+          placement: GlassExtraButtonPlacement.right,
+          size: extraBtnSize,
+          onTap: () {
+            _showSettingsPanel(context);
+          },
         ),
       ),
     );
   }
 
-  Widget _buildDesktopThemeToggle() {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-    final bn = BanglaLocalizations.of(context);
-
-    return Tooltip(
-      message: isDark
-          ? (bn.isBangla ? 'লাইট মোড' : 'Light Mode')
-          : (bn.isBangla ? 'ডার্ক মোড' : 'Dark Mode'),
-      child: GestureDetector(
-        onTap: () => _triggerThemeTransition(context, themeProvider, !isDark),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.06),
-              width: 1.0,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RepaintBoundary(
-                child: ModernThemeIcon(
-                  isDark: isDark,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isDark
-                    ? (bn.isBangla ? 'লাইট' : 'Light')
-                    : (bn.isBangla ? 'ডার্ক' : 'Dark'),
-                style: TextStyle(
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Widget _buildDesktopNavIcon(int index, IconData fallbackIcon, {required bool active}) {
+    const double sz = 20.0;
+    final Color color = active
+        ? const Color(0xFFFF8C42)
+        : (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
+    String? assetPath;
+    switch (index) {
+      case 0: assetPath = 'assets/icons/dashboard.png'; break;
+      case 1: assetPath = 'assets/icons/meals.png'; break;
+      case 2: assetPath = 'assets/icons/member.png'; break;
+      case 3: assetPath = 'assets/icons/expenses.png'; break;
+      case 4: assetPath = 'assets/icons/payments.png'; break;
+    }
+    if (assetPath != null) {
+      return Image.asset(assetPath, width: sz, height: sz, color: color);
+    }
+    return Icon(fallbackIcon, size: sz, color: color);
   }
 
 
@@ -997,14 +948,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSettingsDropdown() {
-    bool isActive = _currentIndex == 7 || _currentIndex == 6 || _isSettingsPanelOpen;
-    return GestureDetector(
-      onTap: () => _showSettingsPanel(context),
-      child: _buildPillTabChild(7, Icons.settings_rounded, BanglaLocalizations.of(context).navSettings, isActive),
-    );
-  }
-
   Widget _buildSettingsMenuItem({required int value, required IconData icon, required String text, required bool isDark, required BuildContext ctx, String? imageAssetPath}) {
     return InkWell(
       onTap: () {
@@ -1048,232 +991,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Amber indicator pill matching mobile navbar with snake-molt feel:
-  // squashes/stretches during transit with a glossy specular highlight sweep.
-  Widget _buildMoltPill() {
-    return AnimatedBuilder(
-      animation: _navMoltController,
-      builder: (context, child) {
-        final double t = _navMoltController.value; // 0..1
-        final double bump = math.sin(t * math.pi); // 0 -> 1 -> 0
-        final double scaleX = 1.0 + 0.10 * bump;   // stretch along travel
-        final double scaleY = 1.0 - 0.07 * bump;   // squash vertically
-        // Glossy shine sweeps left -> right across the pill during travel
-        final double shineX = -1.4 + t * 2.8;      // Alignment.x from -1.4..1.4
-        final double shineOpacity = bump;          // brightest mid-travel
-
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.diagonal3Values(scaleX, scaleY, 1.0),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFF9E58),
-                  Color(0xFFFF7A2F),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(50),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF8C42).withValues(alpha: 0.45),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  blurRadius: 2,
-                  offset: const Offset(0, -1),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: IgnorePointer(
-                child: Align(
-                  alignment: Alignment(shineX, 0),
-                  child: Opacity(
-                    opacity: shineOpacity.clamp(0.0, 1.0),
-                    child: Transform.rotate(
-                      angle: 0.4,
-                      child: Container(
-                        width: 26,
-                        height: 90,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Color(0x00FFFFFF),
-                              Color(0x8CFFFFFF),
-                              Color(0x00FFFFFF),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildFixedTab(int index, IconData icon, String label, {bool showLabel = true, Key? tabKey}) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-    bool isActive = _currentIndex == index;
-
-    // Active content is white (sits on the sliding amber pill); inactive matches mobile navbar
-    const Color activeTextColor = Colors.white;
-    final Color inactiveTextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final Color inactiveBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.06);
-
-    Widget inner = Container(
-      padding: EdgeInsets.symmetric(horizontal: showLabel ? 14 : 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(50),
-        border: Border.all(
-          color: isActive ? Colors.transparent : inactiveBorder,
-          width: 1.0,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildTabIcon(index, icon, isActive),
-          if (showLabel) const SizedBox(width: 6),
-          if (showLabel)
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              style: TextStyle(
-                color: isActive ? activeTextColor : inactiveTextColor,
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: 0.1,
-              ),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-        ],
-      ),
-    );
-
-    return GestureDetector(
-      key: tabKey,
-      onTap: () => _onTabChanged(index),
-      behavior: HitTestBehavior.opaque,
-      child: inner,
-    );
-  }
-
-  // Used for Settings button and other independent tabs
-  Widget _buildPillTabChild(int index, IconData icon, String label, bool isActive) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-    double screenWidth = MediaQuery.of(context).size.width;
-    bool isSmallDesktop = screenWidth < 1200;
-
-    final Color activeBg = const Color(0xFFFF8C42);
-    final Color inactiveBg = isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05);
-
-    final Color activeIconColor = Colors.white;
-    final Color inactiveIconColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: isActive ? activeBg : inactiveBg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isActive ? activeBg : (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.06)),
-          width: 1.0,
-        ),
-        boxShadow: isActive ? [
-          BoxShadow(
-            color: const Color(0xFFFF8C42).withValues(alpha: 0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ] : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 15,
-            color: isActive ? activeIconColor : inactiveIconColor,
-          ),
-          if (!isSmallDesktop) ...[
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? activeIconColor : inactiveIconColor,
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabIcon(int index, IconData fallbackIcon, bool isActive) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-    String? assetPath;
-    switch (index) {
-      case 0: assetPath = 'assets/icons/dashboard.png'; break;
-      case 1: assetPath = 'assets/icons/meals.png'; break;
-      case 2: assetPath = 'assets/icons/member.png'; break;
-      case 3: assetPath = 'assets/icons/expenses.png'; break;
-      case 4: assetPath = 'assets/icons/payments.png'; break;
-    }
-
-    const Color activeColor = Colors.white;
-    final Color inactiveColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    final Widget iconChild = assetPath != null
-        ? Image.asset(
-            assetPath,
-            width: 16,
-            height: 16,
-            color: isActive ? activeColor : inactiveColor,
-          )
-        : Icon(
-            fallbackIcon,
-            color: isActive ? activeColor : inactiveColor,
-            size: 16,
-          );
-
-    return AnimatedScale(
-      scale: isActive ? 1.15 : 1.0,
-      duration: const Duration(milliseconds: 340),
-      curve: Curves.easeOutBack,
-      child: iconChild,
-    );
-  }
 }
 
 class HomeDashboardView extends StatefulWidget {
