@@ -549,6 +549,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTopPillTabs(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDark = themeProvider.isDarkMode;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isSmallDesktop = screenWidth < 1200;
 
@@ -561,51 +563,139 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     const int tabCount = 6;
     final bool indicatorVisible = _currentIndex >= 0 && _currentIndex < tabCount;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ── Tab buttons with a green pill that glides between them ──
-        Stack(
-          children: [
-            // The sliding green indicator (sits behind the tabs)
-            if (_navIndicatorLeft != null && _navIndicatorWidth != null)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 360),
-                curve: Curves.easeOutCubic,
-                left: _navIndicatorLeft!,
-                top: 0,
-                bottom: 0,
-                width: _navIndicatorWidth!,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: indicatorVisible ? 1.0 : 0.0,
-                  child: _buildMoltPill(),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(40),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.8),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: isDark ? const Color(0x25FFFFFF) : const Color(0x80FFFFFF),
+                blurRadius: 1.5,
+                offset: const Offset(0, -1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Tab buttons with an amber glowing pill that glides between them ──
+              Stack(
+                children: [
+                  // The sliding indicator (sits behind the tabs)
+                  if (_navIndicatorLeft != null && _navIndicatorWidth != null)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 360),
+                      curve: Curves.easeOutCubic,
+                      left: _navIndicatorLeft!,
+                      top: 0,
+                      bottom: 0,
+                      width: _navIndicatorWidth!,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: indicatorVisible ? 1.0 : 0.0,
+                        child: _buildMoltPill(),
+                      ),
+                    ),
+                  // The tab buttons on top of the indicator
+                  Row(
+                    key: _navTabsRowKey,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildFixedTab(0, Icons.grid_view_rounded, BanglaLocalizations.of(context).tabDashboard, showLabel: !isSmallDesktop, tabKey: _navTabKeys[0]),
+                      const SizedBox(width: tabSpacing),
+                      _buildFixedTab(1, Icons.restaurant_menu_rounded, BanglaLocalizations.of(context).tabMeals, showLabel: !isSmallDesktop, tabKey: _navTabKeys[1]),
+                      const SizedBox(width: tabSpacing),
+                      _buildFixedTab(2, Icons.people_alt_rounded, BanglaLocalizations.of(context).tabPeople, showLabel: !isSmallDesktop, tabKey: _navTabKeys[2]),
+                      const SizedBox(width: tabSpacing),
+                      _buildFixedTab(3, Icons.shopping_bag_rounded, BanglaLocalizations.of(context).tabExpenses, showLabel: !isSmallDesktop, tabKey: _navTabKeys[3]),
+                      const SizedBox(width: tabSpacing),
+                      _buildFixedTab(4, Icons.credit_card_rounded, BanglaLocalizations.of(context).tabPayments, showLabel: !isSmallDesktop, tabKey: _navTabKeys[4]),
+                      const SizedBox(width: tabSpacing),
+                      _buildFixedTab(5, Icons.gavel_rounded, BanglaLocalizations.of(context).tabFeastFines, showLabel: !isSmallDesktop, tabKey: _navTabKeys[5]),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              // Glass vertical separator
+              Container(
+                width: 1.2,
+                height: 24,
+                color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+              ),
+              const SizedBox(width: 8),
+              // Settings Dropdown
+              _buildSettingsDropdown(),
+              const SizedBox(width: 6),
+              // Modern 3D Theme Switch (Matching Mobile Navbar)
+              _buildDesktopThemeToggle(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopThemeToggle() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDark = themeProvider.isDarkMode;
+    final bn = BanglaLocalizations.of(context);
+
+    return Tooltip(
+      message: isDark
+          ? (bn.isBangla ? 'লাইট মোড' : 'Light Mode')
+          : (bn.isBangla ? 'ডার্ক মোড' : 'Dark Mode'),
+      child: GestureDetector(
+        onTap: () => _triggerThemeTransition(context, themeProvider, !isDark),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.06),
+              width: 1.0,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RepaintBoundary(
+                child: ModernThemeIcon(
+                  isDark: isDark,
+                  size: 22,
                 ),
               ),
-            // The tab buttons on top of the indicator
-            Row(
-              key: _navTabsRowKey,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildFixedTab(0, Icons.grid_view_rounded, BanglaLocalizations.of(context).tabDashboard, showLabel: !isSmallDesktop, tabKey: _navTabKeys[0]),
-                const SizedBox(width: tabSpacing),
-                _buildFixedTab(1, Icons.restaurant_menu_rounded, BanglaLocalizations.of(context).tabMeals, showLabel: !isSmallDesktop, tabKey: _navTabKeys[1]),
-                const SizedBox(width: tabSpacing),
-                _buildFixedTab(2, Icons.people_alt_rounded, BanglaLocalizations.of(context).tabPeople, showLabel: !isSmallDesktop, tabKey: _navTabKeys[2]),
-                const SizedBox(width: tabSpacing),
-                _buildFixedTab(3, Icons.shopping_bag_rounded, BanglaLocalizations.of(context).tabExpenses, showLabel: !isSmallDesktop, tabKey: _navTabKeys[3]),
-                const SizedBox(width: tabSpacing),
-                _buildFixedTab(4, Icons.credit_card_rounded, BanglaLocalizations.of(context).tabPayments, showLabel: !isSmallDesktop, tabKey: _navTabKeys[4]),
-                const SizedBox(width: tabSpacing),
-                _buildFixedTab(5, Icons.gavel_rounded, BanglaLocalizations.of(context).tabFeastFines, showLabel: !isSmallDesktop, tabKey: _navTabKeys[5]),
-              ],
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                isDark
+                    ? (bn.isBangla ? 'লাইট' : 'Light')
+                    : (bn.isBangla ? 'ডার্ক' : 'Dark'),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(width: 10),
-        // Settings Dropdown
-        _buildSettingsDropdown(),
-      ],
+      ),
     );
   }
 
@@ -958,8 +1048,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Green indicator pill with a snake-molt feel: it squashes/stretches as it
-  // travels and a glossy highlight sweeps across it like fresh new skin.
+  // Amber indicator pill matching mobile navbar with snake-molt feel:
+  // squashes/stretches during transit with a glossy specular highlight sweep.
   Widget _buildMoltPill() {
     return AnimatedBuilder(
       animation: _navMoltController,
@@ -977,8 +1067,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           transform: Matrix4.diagonal3Values(scaleX, scaleY, 1.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF047857),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFF9E58),
+                  Color(0xFFFF7A2F),
+                ],
+              ),
               borderRadius: BorderRadius.circular(50),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF8C42).withValues(alpha: 0.45),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  blurRadius: 2,
+                  offset: const Offset(0, -1),
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(50),
@@ -1017,19 +1130,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildFixedTab(int index, IconData icon, String label, {bool showLabel = true, Key? tabKey}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDark = themeProvider.isDarkMode;
     bool isActive = _currentIndex == index;
 
-    // Active content is white (sits on the sliding green pill); inactive is green
+    // Active content is white (sits on the sliding amber pill); inactive matches mobile navbar
     const Color activeTextColor = Colors.white;
-    final Color inactiveTextColor = themeProvider.resolveColor(
-      light: const Color(0xFF047857),
-      dark: const Color(0xFF34D399),
-    );
-    // Idle border keeps the green outline; active border is hidden (pill fills it)
-    final Color inactiveBorder = themeProvider.resolveColor(
-      light: const Color(0xFF047857),
-      dark: const Color(0xFF34D399),
-    );
+    final Color inactiveTextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final Color inactiveBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.06);
 
     Widget inner = Container(
       padding: EdgeInsets.symmetric(horizontal: showLabel ? 14 : 12, vertical: 8),
@@ -1038,7 +1145,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(50),
         border: Border.all(
           color: isActive ? Colors.transparent : inactiveBorder,
-          width: 1.5,
+          width: 1.0,
         ),
       ),
       child: Row(
@@ -1054,7 +1161,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: TextStyle(
                 color: isActive ? activeTextColor : inactiveTextColor,
                 fontSize: 12,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
                 letterSpacing: 0.1,
               ),
               child: Text(
@@ -1078,59 +1185,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Used for Settings button and other independent tabs
   Widget _buildPillTabChild(int index, IconData icon, String label, bool isActive) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    
-    final Color activeBg = themeProvider.resolveColor(
-      light: const Color(0xFF1E293B).withValues(alpha: 0.85),
-      dark: Colors.white,
-    );
-    final Color inactiveBg = themeProvider.resolveColor(
-      light: Colors.black.withValues(alpha: 0.08),
-      dark: Colors.white.withValues(alpha: 0.08),
-    );
+    final bool isDark = themeProvider.isDarkMode;
+    double screenWidth = MediaQuery.of(context).size.width;
+    bool isSmallDesktop = screenWidth < 1200;
 
-    // Icon must contrast against its background in both states/themes.
-    // Active bg: navy (light) / white (dark)  →  icon: white (light) / dark (dark)
-    final Color activeIconColor = themeProvider.resolveColor(
-      light: Colors.white,
-      dark: const Color(0xFF282D37),
-    );
-    final Color inactiveIconColor = themeProvider.resolveColor(
-      light: const Color(0xFF1E293B),
-      dark: Colors.white,
-    );
+    final Color activeBg = const Color(0xFFFF8C42);
+    final Color inactiveBg = isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05);
+
+    final Color activeIconColor = Colors.white;
+    final Color inactiveIconColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: isActive ? activeBg : inactiveBg,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isActive ? activeBg : inactiveBg,
+          color: isActive ? activeBg : (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.06)),
           width: 1.0,
         ),
+        boxShadow: isActive ? [
+          BoxShadow(
+            color: const Color(0xFFFF8C42).withValues(alpha: 0.4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ] : null,
       ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: ScaleTransition(scale: animation, child: child),
-          );
-        },
-        child: Icon(
-          icon,
-          key: ValueKey<bool>(isActive),
-          size: 16,
-          color: isActive ? activeIconColor : inactiveIconColor,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: isActive ? activeIconColor : inactiveIconColor,
+          ),
+          if (!isSmallDesktop) ...[
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? activeIconColor : inactiveIconColor,
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildTabIcon(int index, IconData fallbackIcon, bool isActive) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDark = themeProvider.isDarkMode;
     String? assetPath;
     switch (index) {
       case 0: assetPath = 'assets/icons/dashboard.png'; break;
@@ -1140,15 +1251,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       case 4: assetPath = 'assets/icons/payments.png'; break;
     }
 
-    final activeColor = themeProvider.resolveColor(
-      light: Colors.white,
-      dark: Colors.white,
-    );
-    // Idle icon: visible in both themes (green on light, white on dark)
-    final inactiveColor = themeProvider.resolveColor(
-      light: const Color(0xFF047857),
-      dark: Colors.white,
-    );
+    const Color activeColor = Colors.white;
+    final Color inactiveColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     final Widget iconChild = assetPath != null
         ? Image.asset(
@@ -1163,9 +1267,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             size: 16,
           );
 
-    // Subtle icon pop when the tab becomes active
     return AnimatedScale(
-      scale: isActive ? 1.18 : 1.0,
+      scale: isActive ? 1.15 : 1.0,
       duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutBack,
       child: iconChild,
