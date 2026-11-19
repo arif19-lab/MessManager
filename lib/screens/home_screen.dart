@@ -398,9 +398,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               context,
                               MaterialPageRoute(builder: (context) => const CustomizeHomeScreen()),
                             );
-                            if (result == true && mounted) {
+                            if (result == true && context.mounted) {
                               await _applySystemUIFromPrefs();
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               GlassyNotification.show(context, message: 'Home dashboard customized successfully!');
                               setState(() {
                                 _dashboardKeyCount++;
