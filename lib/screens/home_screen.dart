@@ -423,6 +423,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       innerBlur: 2.0,
       pressScale: 1.06,
       indicatorExpansion: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      indicatorColor: isDark
+          ? const Color(0x35FFFFFF)
+          : const Color(0x75FFFFFF),
       settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
         glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
         thickness: 34,
@@ -449,11 +452,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
-        thickness: 36,
+        glassColor: isDark ? const Color(0x30FFFFFF) : const Color(0x60FFFFFF),
+        thickness: 44,
+        ambientRim: isDark ? 0.45 : 0.50,
         refractiveIndex: 1.26,
         chromaticAberration: 0.05,
-        rimLight: 1.5,
-        rimShade: 1.1,
+        rimLight: 2.2,
+        rimShade: 1.35,
+        rimShadeEnds: 0.56,
+        whitenStrength: isDark ? 0.12 : 0.20,
       ),
       selectedIconColor: const Color(0xFFFF8C42),
       unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -537,6 +544,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         innerBlur: 2.0,
         pressScale: 1.06,
         indicatorExpansion: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        indicatorColor: isDark
+            ? const Color(0x35FFFFFF)
+            : const Color(0x75FFFFFF),
         settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
           glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
           thickness: 34,
@@ -563,11 +573,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
         ),
         indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
-          thickness: 36,
+          glassColor: isDark ? const Color(0x30FFFFFF) : const Color(0x60FFFFFF),
+          thickness: 44,
+          ambientRim: isDark ? 0.45 : 0.50,
           refractiveIndex: 1.26,
           chromaticAberration: 0.05,
-          rimLight: 1.5,
-          rimShade: 1.1,
+          rimLight: 2.2,
+          rimShade: 1.35,
+          rimShadeEnds: 0.56,
+          whitenStrength: isDark ? 0.12 : 0.20,
         ),
         selectedIconColor: const Color(0xFFFF8C42),
         unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
