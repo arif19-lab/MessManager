@@ -29,7 +29,10 @@ class DrawerWidget extends StatelessWidget {
     
     double drawerWidth = isDesktop ? 280 : (screenWidth * 0.78).clamp(250.0, 320.0).toDouble();
 
-    final borderRadius = BorderRadius.zero;
+    const borderRadius = BorderRadius.only(
+      topRight: Radius.circular(28.0),
+      bottomRight: Radius.circular(28.0),
+    );
 
     return SizedBox(
       width: drawerWidth,
@@ -59,11 +62,9 @@ class DrawerWidget extends StatelessWidget {
                         Colors.white.withValues(alpha: 0.28),
                       ],
               ),
-              border: Border(
-                right: BorderSide(
-                  color: isDark ? const Color(0x35FFFFFF) : const Color(0x28000000),
-                  width: 1.2,
-                ),
+              border: Border.all(
+                color: isDark ? const Color(0x35FFFFFF) : const Color(0x28000000),
+                width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
