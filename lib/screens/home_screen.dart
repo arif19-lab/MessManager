@@ -303,13 +303,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // 1. Main Screen - Kept static in place so drawer BackdropFilter blurs it directly!
                 childWidget!,
 
-                // 2. Dim Scrim + Live Frosted Blur Overlay strictly outside the drawer panel
+                // 2. Dim Scrim + Live Frosted Blur Overlay across the entire screen
                 if (isOpen)
-                  Positioned(
-                    left: drawerWidth * progress,
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
+                  Positioned.fill(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _drawerController.animateTo(0.0, curve: Curves.easeOutCubic),
