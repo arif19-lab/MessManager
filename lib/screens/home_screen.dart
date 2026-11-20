@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isSettingsPanelOpen = false;
   late final AnimationController _drawerController;
+  late final AnimationController _extraBtnReactionController;
 
   @override
   void initState() {
@@ -49,6 +51,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _drawerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 160),
+    );
+    _extraBtnReactionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
     );
     _applySystemUIFromPrefs();
   }
@@ -65,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     // Restore edge-to-edge when leaving HomeScreen
     _drawerController.dispose();
+    _extraBtnReactionController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -410,100 +417,119 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
-    return GlassTabBar.bottom(
-      quality: GlassQuality.standard,
-      selectedIndex: (_navIndex >= 0 && _navIndex < 3) ? _navIndex : 0,
-      showIndicator: _navIndex < 3,
-      onTabSelected: (index) {
-        _onTabChanged(_pageIndex(index));
+    return AnimatedBuilder(
+      animation: _extraBtnReactionController,
+      builder: (context, child) {
+        final t = _extraBtnReactionController.value;
+        final squish = math.sin(t * math.pi * 2.2) * math.exp(-3.2 * t);
+        return Transform.translate(
+          offset: Offset(-8.0 * squish, 0),
+          child: Transform.scale(
+            scaleX: 1.0 - (0.045 * squish),
+            alignment: Alignment.centerLeft,
+            child: child,
+          ),
+        );
       },
-      enableBlend: true,
-      blendAmount: 14.0,
-      spacing: 6.0,
-      indicatorPinchStrength: 1.15,
-      glowDuration: const Duration(milliseconds: 500),
-      magnification: 1.25,
-      innerBlur: 3.5,
-      pressScale: 1.06,
-      indicatorExpansion: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
-        glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
-        thickness: 34,
-        blur: 26,
-        frost: 18,
-        frostOpacity: isDark ? 0.90 : 0.82,
-        refractiveIndex: 1.26,
-        chromaticAberration: 0.05,
-        rimLight: isDark ? 1.50 : 1.25,
-        rimShade: isDark ? 0.95 : 0.50,
-        rimShadeEnds: 0.5,
-        edgeAbsorption: 0.035,
-        shadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.16),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-          BoxShadow(
-            color: isDark ? const Color(0x30FFFFFF) : const Color(0x70FFFFFF),
-            blurRadius: 1.5,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
-        thickness: 38,
-        ambientRim: isDark ? 0.32 : 0.28,
-        refractiveIndex: 1.34,
-        chromaticAberration: 0.06,
-        rimLight: 2.2,
-        rimShade: 1.35,
-        rimShadeEnds: 0.58,
-        shadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      selectedIconColor: const Color(0xFFFF8C42),
-      unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-      selectedLabelColor: const Color(0xFFFF8C42),
-      unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
-      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.2),
-      tabs: [
-        GlassTab(
-          icon: _buildNavIcon(0, active: false),
-          activeIcon: _buildNavIcon(0, active: true),
-          label: bn.navHome,
-        ),
-        GlassTab(
-          icon: _buildNavIcon(1, active: false),
-          activeIcon: _buildNavIcon(1, active: true),
-          label: bn.navMeals,
-        ),
-        GlassTab(
-          icon: _buildNavIcon(2, active: false),
-          activeIcon: _buildNavIcon(2, active: true),
-          label: bn.navPeople,
-        ),
-      ],
-      extraButton: GlassTabBarExtraButton(
-        icon: RepaintBoundary(
-          child: ModernThemeIcon(
-            isDark: isDark,
-            size: 26,
-          ),
-        ),
-        label: isDark
-            ? (bn.isBangla ? 'লাইট' : 'Light')
-            : (bn.isBangla ? 'ডার্ক' : 'Dark'),
-        placement: GlassExtraButtonPlacement.right,
-        onTap: () {
-          _triggerThemeTransition(context, themeProvider, !isDark);
+      child: GlassTabBar.bottom(
+        quality: GlassQuality.standard,
+        selectedIndex: (_navIndex >= 0 && _navIndex < 3) ? _navIndex : 0,
+        showIndicator: _navIndex < 3,
+        onTabSelected: (index) {
+          _onTabChanged(_pageIndex(index));
         },
+        enableBlend: true,
+        blendAmount: 14.0,
+        spacing: 6.0,
+        indicatorPinchStrength: 1.15,
+        glowDuration: const Duration(milliseconds: 500),
+        magnification: 1.25,
+        innerBlur: 3.5,
+        pressScale: 1.06,
+        indicatorExpansion: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        settings: (isDark ? LiquidGlassSettings.ios27Dark : LiquidGlassSettings.ios27Light).copyWith(
+          glassColor: isDark ? const Color(0x381E222A) : const Color(0xD0FFFFFF),
+          thickness: 34,
+          blur: 26,
+          frost: 18,
+          frostOpacity: isDark ? 0.90 : 0.82,
+          refractiveIndex: 1.26,
+          chromaticAberration: 0.05,
+          rimLight: isDark ? 1.50 : 1.25,
+          rimShade: isDark ? 0.95 : 0.50,
+          rimShadeEnds: 0.5,
+          edgeAbsorption: 0.035,
+          shadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.16),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: isDark ? const Color(0x30FFFFFF) : const Color(0x70FFFFFF),
+              blurRadius: 1.5,
+              offset: const Offset(0, -1),
+            ),
+          ],
+        ),
+        indicatorSettings: LiquidGlassSettings.ios27Indicator.copyWith(
+          thickness: 38,
+          ambientRim: isDark ? 0.32 : 0.28,
+          refractiveIndex: 1.34,
+          chromaticAberration: 0.06,
+          rimLight: 2.2,
+          rimShade: 1.35,
+          rimShadeEnds: 0.58,
+          shadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        selectedIconColor: const Color(0xFFFF8C42),
+        unselectedIconColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        selectedLabelColor: const Color(0xFFFF8C42),
+        unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.2),
+        tabs: [
+          GlassTab(
+            icon: _buildNavIcon(0, active: false),
+            activeIcon: _buildNavIcon(0, active: true),
+            label: bn.navHome,
+          ),
+          GlassTab(
+            icon: _buildNavIcon(1, active: false),
+            activeIcon: _buildNavIcon(1, active: true),
+            label: bn.navMeals,
+          ),
+          GlassTab(
+            icon: _buildNavIcon(2, active: false),
+            activeIcon: _buildNavIcon(2, active: true),
+            label: bn.navPeople,
+          ),
+        ],
+        extraButton: GlassTabBarExtraButton(
+          icon: Listener(
+            onPointerDown: (_) => _extraBtnReactionController.forward(from: 0.0),
+            child: RepaintBoundary(
+              child: ModernThemeIcon(
+                isDark: isDark,
+                size: 26,
+              ),
+            ),
+          ),
+          label: isDark
+              ? (bn.isBangla ? 'লাইট' : 'Light')
+              : (bn.isBangla ? 'ডার্ক' : 'Dark'),
+          placement: GlassExtraButtonPlacement.right,
+          onTap: () {
+            _extraBtnReactionController.forward(from: 0.0);
+            _triggerThemeTransition(context, themeProvider, !isDark);
+          },
+        ),
       ),
     );
   }
@@ -528,10 +554,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     const double spacing = 6.0;
     final double totalWidth = (tabWidth * 6) + spacing + extraBtnSize;
 
-    return SizedBox(
-      width: totalWidth,
-      height: 58.0,
-      child: GlassTabBar.bottom(
+    return AnimatedBuilder(
+      animation: _extraBtnReactionController,
+      builder: (context, child) {
+        final t = _extraBtnReactionController.value;
+        final squish = math.sin(t * math.pi * 2.2) * math.exp(-3.2 * t);
+        return Transform.translate(
+          offset: Offset(-8.0 * squish, 0),
+          child: Transform.scale(
+            scaleX: 1.0 - (0.045 * squish),
+            alignment: Alignment.centerLeft,
+            child: child,
+          ),
+        );
+      },
+      child: SizedBox(
+        width: totalWidth,
+        height: 58.0,
+        child: GlassTabBar.bottom(
         quality: GlassQuality.standard,
         selectedIndex: (_currentIndex >= 0 && _currentIndex < 6) ? _currentIndex : 0,
         showIndicator: _currentIndex < 6,
@@ -631,34 +671,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
         extraButton: GlassTabBarExtraButton.menu(
-          icon: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            width: 38,
-            height: 38,
-            decoration: (_currentIndex >= 6 || _isSettingsPanelOpen)
-                ? BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFFF8C42).withValues(alpha: 0.22),
-                    border: Border.all(
-                      color: const Color(0xFFFF8C42).withValues(alpha: 0.85),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFF8C42).withValues(alpha: 0.35),
-                        blurRadius: 10,
+          icon: Listener(
+            onPointerDown: (_) => _extraBtnReactionController.forward(from: 0.0),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              width: 38,
+              height: 38,
+              decoration: (_currentIndex >= 6 || _isSettingsPanelOpen)
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFF8C42).withValues(alpha: 0.22),
+                      border: Border.all(
+                        color: const Color(0xFFFF8C42).withValues(alpha: 0.85),
+                        width: 1.5,
                       ),
-                    ],
-                  )
-                : null,
-            child: Center(
-              child: Icon(
-                Icons.settings_rounded,
-                size: 24,
-                color: (_currentIndex >= 6 || _isSettingsPanelOpen)
-                    ? const Color(0xFFFF8C42)
-                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF8C42).withValues(alpha: 0.35),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    )
+                  : null,
+              child: Center(
+                child: Icon(
+                  Icons.settings_rounded,
+                  size: 24,
+                  color: (_currentIndex >= 6 || _isSettingsPanelOpen)
+                      ? const Color(0xFFFF8C42)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
               ),
             ),
           ),
@@ -705,8 +748,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDesktopNavIcon(int index, IconData fallbackIcon, {required bool active}) {
     const double sz = 20.0;
