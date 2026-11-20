@@ -417,6 +417,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       onTabSelected: (index) {
         _onTabChanged(_pageIndex(index));
       },
+      enableBlend: true,
+      blendAmount: 14.0,
+      spacing: 6.0,
       indicatorPinchStrength: 1.15,
       glowDuration: const Duration(milliseconds: 500),
       magnification: 1.25,
@@ -522,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double tabWidth = screenWidth < 1100 ? 80.0 : (screenWidth < 1300 ? 88.0 : 96.0);
     const double extraBtnSize = 58.0;
-    const double spacing = 10.0;
+    const double spacing = 6.0;
     final double totalWidth = (tabWidth * 6) + spacing + extraBtnSize;
 
     return SizedBox(
@@ -535,6 +538,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         onTabSelected: (index) {
           _onTabChanged(index);
         },
+        enableBlend: true,
+        blendAmount: 14.0,
         spacing: spacing,
         horizontalPadding: 0,
         verticalPadding: 0,
@@ -625,20 +630,79 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             label: bn.tabFeastFines,
           ),
         ],
-        extraButton: GlassTabBarExtraButton(
-          icon: Icon(
-            Icons.settings_rounded,
-            size: 24,
-            color: (_currentIndex >= 6 || _isSettingsPanelOpen)
-                ? const Color(0xFFFF8C42)
-                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+        extraButton: GlassTabBarExtraButton.menu(
+          icon: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            width: 38,
+            height: 38,
+            decoration: (_currentIndex >= 6 || _isSettingsPanelOpen)
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFF8C42).withValues(alpha: 0.22),
+                    border: Border.all(
+                      color: const Color(0xFFFF8C42).withValues(alpha: 0.85),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF8C42).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  )
+                : null,
+            child: Center(
+              child: Icon(
+                Icons.settings_rounded,
+                size: 24,
+                color: (_currentIndex >= 6 || _isSettingsPanelOpen)
+                    ? const Color(0xFFFF8C42)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+            ),
           ),
           label: bn.navSettings,
           placement: GlassExtraButtonPlacement.right,
           size: extraBtnSize,
-          onTap: () {
-            _showSettingsPanel(context);
-          },
+          menuWidth: 230,
+          menuItems: [
+            GlassMenuItem(
+              icon: const Icon(Icons.tune_rounded, size: 20),
+              title: bn.isBangla ? 'সেটিংস প্যানেল' : 'Settings Panel',
+              onTap: () {
+                _showSettingsPanel(context);
+              },
+            ),
+            GlassMenuItem(
+              icon: const Icon(Icons.palette_outlined, size: 20),
+              title: bn.isBangla ? 'কাস্টমাইজ হোম' : 'Customize Home',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CustomizeHomeScreen()),
+                );
+              },
+            ),
+            GlassMenuItem(
+              icon: const Icon(Icons.notifications_none_rounded, size: 20),
+              title: bn.isBangla ? 'নোটিফিকেশন' : 'Notifications',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                );
+              },
+            ),
+            GlassMenuItem(
+              icon: const Icon(Icons.language_rounded, size: 20),
+              title: bn.isBangla ? 'English এ পরিবর্তন' : 'বাংলায় পরিবর্তন',
+              onTap: () {
+                final lp = Provider.of<LanguageProvider>(context, listen: false);
+                lp.setLocale(Locale(lp.isBangla ? 'en' : 'bn'));
+              },
+            ),
+          ],
         ),
       ),
     );
